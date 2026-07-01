@@ -35,12 +35,20 @@ Run the experiment:
 python scripts/run_experiment.py --data-dir data/voc_subset --output-dir outputs --max-samples 30
 ```
 
+Generate per-class and success/failure analysis:
+
+```powershell
+python scripts/analyze_results.py --metrics outputs/metrics.csv --output-dir outputs/analysis
+```
+
 The main outputs are:
 
 - `outputs/metrics.csv`: per-sample IoU and Dice.
 - `outputs/summary.json`: aggregate metrics.
 - `outputs/figures/*.png`: qualitative predictions.
 - `outputs/figures/metric_summary.png`: metric comparison plot.
+- `outputs/analysis/per_class_summary.csv`: per-class metrics.
+- `outputs/analysis/success_failure.md`: success and failure case analysis.
 
 ## Report
 
