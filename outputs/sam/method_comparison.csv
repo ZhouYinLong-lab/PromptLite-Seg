@@ -1,0 +1,4 @@
+method,mean_iou,std_iou,mean_dice,std_dice
+center_color,0.546839,0.232282,0.675412,0.212246
+robust_superpixel,0.603078,0.211072,0.727713,0.189545
+sam_vit_b_point_box,0.832472,0.148429,0.900172,0.104446

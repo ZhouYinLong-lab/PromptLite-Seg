@@ -1,0 +1,10 @@
+{
+  "num_samples": 30,
+  "method": "sam_vit_b_point_box",
+  "device": "cuda",
+  "checkpoint": "checkpoints\\sam_vit_b_01ec64.pth",
+  "mean_iou": 0.8324721230507947,
+  "std_iou": 0.148428915537333,
+  "mean_dice": 0.9001723986789504,
+  "std_dice": 0.1044464864675777
+}

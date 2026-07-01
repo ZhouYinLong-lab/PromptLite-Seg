@@ -4,9 +4,11 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .venv/
+.venv-*/
 venv/
 data/cache/
 outputs_verify/
+checkpoints/
 reports/*.aux
 reports/*.log
 reports/*.out

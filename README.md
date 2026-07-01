@@ -41,6 +41,16 @@ Generate per-class and success/failure analysis:
 python scripts/analyze_results.py --metrics outputs/metrics.csv --output-dir outputs/analysis
 ```
 
+Optional GPU SAM comparison:
+
+```powershell
+python -m venv .venv-sam
+.\.venv-sam\Scripts\python.exe -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+.\.venv-sam\Scripts\python.exe -m pip install -r requirements-sam.txt
+Invoke-WebRequest -Uri "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth" -OutFile "checkpoints/sam_vit_b_01ec64.pth"
+.\.venv-sam\Scripts\python.exe scripts/run_sam_experiment.py --max-samples 30
+```
+
 The main outputs are:
 
 - `outputs/metrics.csv`: per-sample IoU and Dice.
@@ -49,6 +59,8 @@ The main outputs are:
 - `outputs/figures/metric_summary.png`: metric comparison plot.
 - `outputs/analysis/per_class_summary.csv`: per-class metrics.
 - `outputs/analysis/success_failure.md`: success and failure case analysis.
+- `outputs/sam/summary.json`: optional SAM point+box prompt comparison.
+- `outputs/sam/method_comparison.png`: three-method comparison chart.
 
 ## Report
 
