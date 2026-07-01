@@ -40,20 +40,20 @@ Metrics:
 Commands:
 
 ```bash
-python scripts/download_voc_subset.py --count 12
-python scripts/run_experiment.py --data-dir data/voc_subset --output-dir outputs --max-samples 12
+python scripts/download_voc_subset.py --count 30
+python scripts/run_experiment.py --data-dir data/voc_subset --output-dir outputs --max-samples 30
 ```
 
 ## 4. Results
 
-The experiment was run on 12 VOC 2012 validation samples. Aggregate results are stored in `outputs/summary.json`, and per-sample results are stored in `outputs/metrics.csv`.
+The experiment was run on 30 VOC 2012 validation samples. Aggregate results are stored in `outputs/summary.json`, and per-sample results are stored in `outputs/metrics.csv`.
 
 | Method | Mean IoU | Std IoU | Mean Dice | Std Dice |
 | --- | ---: | ---: | ---: | ---: |
-| Center-color baseline | 0.4913 | 0.1983 | 0.6360 | 0.1730 |
-| Robust superpixel | 0.5595 | 0.1693 | 0.7023 | 0.1418 |
+| Center-color baseline | 0.5468 | 0.2323 | 0.6754 | 0.2122 |
+| Robust superpixel | 0.6031 | 0.2111 | 0.7277 | 0.1895 |
 
-The robust superpixel method improves mean IoU by 0.0683 absolute points over the center-color baseline and improves mean Dice by 0.0663. The lower standard deviation also suggests that the method is less sensitive to difficult images where the center color is not representative of the whole object.
+The robust superpixel method improves mean IoU by 0.0562 absolute points over the center-color baseline and improves mean Dice by 0.0523. The lower standard deviation also suggests that the method is less sensitive to difficult images where the center color is not representative of the whole object.
 
 The qualitative figures in `outputs/figures/` compare the original prompt, the ground-truth target, and the predictions of both methods. The summary bar chart is saved as `outputs/figures/metric_summary.png`.
 

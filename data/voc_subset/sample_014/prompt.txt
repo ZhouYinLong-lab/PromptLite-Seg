@@ -1,0 +1,5 @@
+source_row=14
+label=20
+class_name=tvmonitor
+bbox=161,27,370,238
+point=268,120

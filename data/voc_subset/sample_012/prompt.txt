@@ -1,0 +1,5 @@
+source_row=12
+label=10
+class_name=cow
+bbox=1,0,462,334
+point=244,333

@@ -1,0 +1,5 @@
+source_row=22
+label=11
+class_name=diningtable
+bbox=152,182,498,373
+point=326,291

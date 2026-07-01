@@ -26,13 +26,13 @@ python -m pip install -r requirements.txt
 Download a compact PASCAL VOC 2012 validation subset:
 
 ```powershell
-python scripts/download_voc_subset.py --count 12
+python scripts/download_voc_subset.py --count 30
 ```
 
 Run the experiment:
 
 ```powershell
-python scripts/run_experiment.py --data-dir data/voc_subset --output-dir outputs --max-samples 12
+python scripts/run_experiment.py --data-dir data/voc_subset --output-dir outputs --max-samples 30
 ```
 
 The main outputs are:

@@ -1,0 +1,5 @@
+source_row=15
+label=2
+class_name=bicycle
+bbox=24,176,153,223
+point=139,187
