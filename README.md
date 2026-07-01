@@ -52,4 +52,4 @@ The main outputs are:
 
 ## Report
 
-The English technical report is in `reports/report.md`.
+The English technical report is in `reports/report.md`. A formal LaTeX/PDF version is available at `reports/report.tex` and `reports/report.pdf`.

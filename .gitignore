@@ -7,3 +7,7 @@ __pycache__/
 venv/
 data/cache/
 outputs_verify/
+reports/*.aux
+reports/*.log
+reports/*.out
+tmp/
