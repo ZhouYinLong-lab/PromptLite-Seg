@@ -1,0 +1,5 @@
+source_row=1
+label=19
+class_name=train
+bbox=264,32,500,289
+point=499,132

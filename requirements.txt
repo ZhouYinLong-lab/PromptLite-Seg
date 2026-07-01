@@ -1,0 +1,9 @@
+numpy
+Pillow
+matplotlib
+scikit-image
+scipy
+requests
+pyarrow
+pandas
+

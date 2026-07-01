@@ -1,0 +1,5 @@
+source_row=5
+label=17
+class_name=sheep
+bbox=16,33,429,267
+point=213,146

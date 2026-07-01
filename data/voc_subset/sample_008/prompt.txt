@@ -1,0 +1,5 @@
+source_row=8
+label=13
+class_name=horse
+bbox=171,51,284,260
+point=253,109

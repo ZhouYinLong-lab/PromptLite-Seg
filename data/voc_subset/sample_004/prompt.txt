@@ -1,0 +1,5 @@
+source_row=4
+label=15
+class_name=person
+bbox=85,0,334,460
+point=211,115
