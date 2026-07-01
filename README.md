@@ -13,7 +13,7 @@ The project studies whether a segmentation mask can be obtained from only a weak
 - `center_color`: a simple point-and-box color threshold baseline.
 - `robust_superpixel`: a training-free prompt segmentation method using superpixels, foreground/background prototypes, box constraints, and perturbation consensus.
 
-The code also keeps the project structure ready for adding a SAM/SAM2 backend, while the default experiment is intentionally lightweight and CPU-friendly.
+The default experiment is intentionally lightweight and CPU-friendly. With a CUDA GPU, the repository also runs SAM ViT-B experiments that turn the project into a small research study of prompt uncertainty: prompt modality, point-vs-box noise, and multi-prompt selection.
 
 ## Setup
 
@@ -57,6 +57,12 @@ Run the deeper prompt-robustness benchmark:
 .\.venv-sam\Scripts\python.exe scripts/run_robustness_experiment.py --max-samples 30 --trials 2 --include-sam --device cuda
 ```
 
+Run the research-style prompt uncertainty benchmark:
+
+```powershell
+.\.venv-sam\Scripts\python.exe scripts/run_prompt_uncertainty_experiment.py --max-samples 30 --trials 2 --ensemble-size 5 --device cuda
+```
+
 The main outputs are:
 
 - `outputs/metrics.csv`: per-sample IoU and Dice.
@@ -69,6 +75,14 @@ The main outputs are:
 - `outputs/sam/method_comparison.png`: three-method comparison chart.
 - `outputs/robustness/summary.csv`: prompt perturbation robustness metrics.
 - `outputs/robustness/robustness_curve.png`: robustness curve under clean, mild, and moderate prompt noise.
+- `outputs/prompt_uncertainty/summary.csv`: prompt modality, noise decomposition, and multi-prompt uncertainty metrics.
+- `outputs/prompt_uncertainty/prompt_modality.png`: point-only, box-only, and point+box SAM comparison.
+- `outputs/prompt_uncertainty/noise_decomposition.png`: point-noise versus box-noise sensitivity.
+- `outputs/prompt_uncertainty/uncertainty_ensemble.png`: multi-prompt selection under moderate prompt noise.
+
+## Key Finding
+
+The strongest new result is that SAM ViT-B is more box-dominated than point-dominated on this benchmark. Clean box-only prompts reach 0.8565 mean IoU, while clean point+box prompts reach 0.8325 and point-only prompts reach 0.4430. Under moderate noise, point noise remains near clean performance at 0.8507 IoU, but box noise drops to 0.6462. A multi-prompt score-selection strategy recovers moderate point+box noise from 0.6385 to 0.6796 IoU, with an oracle upper bound of 0.7401.
 
 ## Report
 
