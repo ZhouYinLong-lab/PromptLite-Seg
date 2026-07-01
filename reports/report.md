@@ -6,6 +6,8 @@ Repository: https://github.com/ZhouYinLong-lab/PromptLite-Seg
 
 PromptLite-Seg studies zero-shot prompted segmentation on PASCAL VOC 2012. Given a weak prompt, consisting of a center point and a bounding box, the goal is to segment the target object without training on the benchmark. I implement a simple color-threshold baseline, a stronger training-free robust superpixel method, and an optional GPU SAM ViT-B comparison. The robust method uses foreground/background prototypes induced by the prompt, a box constraint, and perturbation consensus. The project produces quantitative IoU/Dice results and qualitative visualizations on a reproducible VOC 2012 validation subset.
 
+The final version adds a prompt-robustness benchmark. Instead of evaluating only perfect center-point and bounding-box prompts, it perturbs both prompts and measures degradation under mild and moderate prompt noise. This turns the project from a single-score comparison into an analysis of prompt sensitivity.
+
 ## 1. Introduction
 
 Prompted segmentation has become a practical interface for general-purpose vision systems. Models such as the Segment Anything Model (SAM) show that segmentation can be controlled by prompts such as points and boxes. However, large pretrained models can be expensive to run in a course project environment. This project therefore asks a narrower but useful question: how far can a lightweight, training-free prompted segmentation algorithm go on real benchmark images?
@@ -58,6 +60,23 @@ The robust superpixel method improves mean IoU by 0.0562 absolute points over th
 
 The optional GPU SAM ViT-B point+box comparison reaches 0.8325 mean IoU and 0.9002 mean Dice, confirming that the same prompts are strong enough for a modern foundation segmentation model. The lightweight method remains useful as a transparent SAM-free baseline and as a low-cost diagnostic method.
 
+## 4.1 Prompt Robustness
+
+To evaluate prompt sensitivity, `scripts/run_robustness_experiment.py` perturbs both the center point and the bounding box. Mild perturbations shift the point and box by roughly 5-6% of object size; moderate perturbations use roughly 10-12%. Each non-clean severity is evaluated with two deterministic trials per sample.
+
+| Severity | Method | Mean IoU | Mean Dice |
+| --- | --- | ---: | ---: |
+| clean | robust_superpixel | 0.6031 | 0.7277 |
+| mild | robust_superpixel | 0.5579 | 0.6927 |
+| moderate | robust_superpixel | 0.4568 | 0.5967 |
+| clean | SAM ViT-B noisy prompt | 0.8325 | 0.9002 |
+| mild | SAM ViT-B noisy prompt | 0.7731 | 0.8537 |
+| moderate | SAM ViT-B noisy prompt | 0.6756 | 0.7795 |
+
+The robustness benchmark reveals the main limitation of prompt segmentation: SAM has much higher absolute accuracy, but it still loses about 0.157 IoU under moderate prompt noise. A naive lightweight prompt repair strategy does not improve SAM; it reduces moderate-noise SAM IoU from 0.6756 to 0.5745. SAM's own score-based selection also underperforms the original noisy prompt at 0.6118. This is a useful negative result: transparent repair masks are helpful for analysis, but SAM's native point+box interface already preserves more information than the repaired prompt.
+
+![Prompt robustness](../outputs/robustness/robustness_curve.png)
+
 The qualitative figures in `outputs/figures/` compare the original prompt, the ground-truth target, and the predictions of both methods. The summary bar chart is saved as `outputs/figures/metric_summary.png`.
 
 ![Metric summary](../outputs/figures/metric_summary.png)
@@ -83,6 +102,8 @@ The method still struggles with thin structures, complex object interiors, and c
 The hardest cases in the current subset include train, bicycle, diningtable, and boat examples. These cases expose different failure modes: train and diningtable instances often contain repetitive interior structures, bicycle masks contain thin parts that are easy to miss, and boat images may have strong background colors inside the prompt box.
 
 Compared with SAM-style models, this method is much weaker in semantic understanding, but it is transparent, CPU-friendly, and easy to analyze. The implemented SAM ViT-B comparison shows the performance ceiling available from a foundation segmentation model, while the proposed method provides a reproducible low-resource baseline.
+
+The robustness experiment adds a stronger research conclusion. The project does not merely show that SAM is better; it quantifies how much prompt noise hurts different methods and shows that naive prompt repair is not automatically beneficial for foundation models. This gives a clearer direction for future work: repair should preserve prompt uncertainty rather than collapse it to a single mask-derived point and box.
 
 ## 6. Conclusion
 

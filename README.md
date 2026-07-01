@@ -51,6 +51,12 @@ Invoke-WebRequest -Uri "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_
 .\.venv-sam\Scripts\python.exe scripts/run_sam_experiment.py --max-samples 30
 ```
 
+Run the deeper prompt-robustness benchmark:
+
+```powershell
+.\.venv-sam\Scripts\python.exe scripts/run_robustness_experiment.py --max-samples 30 --trials 2 --include-sam --device cuda
+```
+
 The main outputs are:
 
 - `outputs/metrics.csv`: per-sample IoU and Dice.
@@ -61,6 +67,8 @@ The main outputs are:
 - `outputs/analysis/success_failure.md`: success and failure case analysis.
 - `outputs/sam/summary.json`: optional SAM point+box prompt comparison.
 - `outputs/sam/method_comparison.png`: three-method comparison chart.
+- `outputs/robustness/summary.csv`: prompt perturbation robustness metrics.
+- `outputs/robustness/robustness_curve.png`: robustness curve under clean, mild, and moderate prompt noise.
 
 ## Report
 
