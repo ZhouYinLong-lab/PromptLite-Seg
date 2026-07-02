@@ -10,9 +10,9 @@ The final version adds prompt-robustness and prompt-uncertainty benchmarks. Inst
 
 ## 1. Introduction
 
-Prompted segmentation has become a practical interface for general-purpose vision systems. Models such as the Segment Anything Model (SAM) show that segmentation can be controlled by prompts such as points and boxes. However, large pretrained models can be expensive to run in a course project environment. This project therefore asks a narrower but useful question: how far can a lightweight, training-free prompted segmentation algorithm go on real benchmark images?
+Prompted segmentation has become a practical interface for general-purpose vision systems. Classic interactive systems such as GrabCut showed that a loose user box can provide enough foreground and background evidence for object extraction [2]. Later deep interactive methods studied stronger point-based guidance, including extreme-point prompts in DEXTR [3], iterative click correction with mask guidance [4], and click encoding with vision transformers in SimpleClick [5]. More recently, the Segment Anything Model (SAM) demonstrated a general promptable segmentation interface that accepts points and boxes and transfers zero-shot to new tasks [6]. This project therefore asks a complementary question: how far can a transparent, training-free prompted segmentation algorithm go on real benchmark images, and how sensitive is SAM to the structure of its prompts?
 
-The task follows the course-design direction of zero-shot prompt segmentation. The benchmark is PASCAL VOC 2012, and the algorithm is evaluated from ground-truth-derived prompts. For each sample, I select the largest semantic object component, convert it into a binary target mask, and derive a tight bounding box and an interior center point.
+The task follows the course-design direction of zero-shot prompt segmentation. The benchmark is PASCAL VOC 2012, a standard object recognition and segmentation benchmark with semantic labels and evaluation protocols [1]. For each sample, I select the largest semantic object component, convert it into a binary target mask, and derive a tight bounding box and an interior center point.
 
 ## 2. Method
 
@@ -26,13 +26,13 @@ The baseline uses only the prompt point and bounding box. It estimates the targe
 
 ### 2.3 Robust Superpixel Prompt Segmentation
 
-The proposed method first runs the center-color baseline to obtain a conservative foreground seed. It then oversegments the image into SLIC superpixels. Each superpixel is represented by mean Lab color and normalized spatial coordinates. Foreground prototypes are estimated from superpixels intersecting the center-point disk, while background prototypes are estimated from superpixels outside the prompt box and along the box border. Each superpixel receives a foreground score based on relative distance to these prototypes, combined with a weak spatial prior centered at the prompt point. The final mask is the union of the conservative color seed and the superpixel consensus across slightly perturbed boxes, followed by morphology and point-connected component selection.
+The proposed method first runs the center-color baseline to obtain a conservative foreground seed. It then oversegments the image into SLIC superpixels, which were designed to provide efficient boundary-aware image primitives [7]. Each superpixel is represented by mean Lab color and normalized spatial coordinates. Foreground prototypes are estimated from superpixels intersecting the center-point disk, while background prototypes are estimated from superpixels outside the prompt box and along the box border. Each superpixel receives a foreground score based on relative distance to these prototypes, combined with a weak spatial prior centered at the prompt point. The final mask is the union of the conservative color seed and the superpixel consensus across slightly perturbed boxes, followed by morphology and point-connected component selection.
 
 This method is zero-shot because it uses no training examples, no VOC labels except for prompt construction during evaluation, and no learned parameters.
 
 ## 3. Experimental Setup
 
-The experiment uses PASCAL VOC 2012 validation samples from the Hugging Face mirror `nateraw/pascal-voc-2012`. A compact subset is produced by `scripts/download_voc_subset.py`, which stores the RGB image, semantic mask, target binary mask, bounding box, and center point for each sample.
+The experiment uses PASCAL VOC 2012 validation samples [1] from the Hugging Face mirror `nateraw/pascal-voc-2012`. A compact subset is produced by `scripts/download_voc_subset.py`, which stores the RGB image, semantic mask, target binary mask, bounding box, and center point for each sample.
 
 Metrics:
 
@@ -81,7 +81,7 @@ The robustness benchmark reveals the main limitation of prompt segmentation: SAM
 
 ## 4.2 Prompt Uncertainty
 
-The deeper experiment asks three research questions:
+The deeper experiment asks three research questions and connects them to the distinction between box-driven interactive segmentation [2] and click-driven correction methods [4, 5]:
 
 - Which clean prompt modality is most informative?
 - Is SAM more sensitive to point noise or box noise?
@@ -144,6 +144,10 @@ This project implements and evaluates a zero-shot prompted segmentation pipeline
 
 ## References
 
-1. Mark Everingham, Luc Van Gool, Christopher K. I. Williams, John Winn, and Andrew Zisserman. The PASCAL Visual Object Classes Challenge 2012. https://www.robots.ox.ac.uk/~vgg/projects/pascal/VOC/voc2012/
-2. Alexander Kirillov et al. Segment Anything. ICCV 2023. https://arxiv.org/abs/2304.02643
-3. Radhakrishna Achanta et al. SLIC Superpixels Compared to State-of-the-Art Superpixel Methods. IEEE TPAMI 2012. https://www.epfl.ch/labs/ivrl/research/slic-superpixels/
+1. Mark Everingham, Luc Van Gool, Christopher K. I. Williams, John Winn, and Andrew Zisserman. The PASCAL Visual Object Classes Challenge. IJCV 2010; VOC 2012 challenge data. https://www.robots.ox.ac.uk/~vgg/projects/pascal/VOC/voc2012/
+2. Carsten Rother, Vladimir Kolmogorov, and Andrew Blake. GrabCut: Interactive Foreground Extraction using Iterated Graph Cuts. ACM TOG/SIGGRAPH 2004. https://dl.acm.org/doi/10.1145/1015706.1015720
+3. Kevis-Kokitsi Maninis, Sergi Caelles, Jordi Pont-Tuset, and Luc Van Gool. Deep Extreme Cut: From Extreme Points to Object Segmentation. CVPR 2018. https://arxiv.org/abs/1711.09081
+4. Konstantin Sofiiuk, Ilia A. Petrov, and Anton Konushin. Reviving Iterative Training with Mask Guidance for Interactive Segmentation. arXiv:2102.06583, 2021. https://arxiv.org/abs/2102.06583
+5. Qin Liu, Zhenlin Xu, Gedas Bertasius, and Marc Niethammer. SimpleClick: Interactive Image Segmentation with Simple Vision Transformers. ICCV 2023. https://arxiv.org/abs/2210.11006
+6. Alexander Kirillov et al. Segment Anything. ICCV 2023. https://arxiv.org/abs/2304.02643
+7. Radhakrishna Achanta et al. SLIC Superpixels Compared to State-of-the-Art Superpixel Methods. IEEE TPAMI 2012. https://doi.org/10.1109/TPAMI.2012.120

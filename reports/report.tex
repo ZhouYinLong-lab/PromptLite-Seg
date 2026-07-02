@@ -21,9 +21,9 @@ PromptLite-Seg studies zero-shot prompted segmentation on PASCAL VOC 2012. Given
 
 \section{Introduction}
 
-Prompted segmentation has become a practical interface for general-purpose vision systems. Models such as the Segment Anything Model (SAM) demonstrate that segmentation can be controlled by points and boxes. However, large pretrained models may be expensive to run or difficult to reproduce in a lightweight course setting. This project therefore asks a complementary question: how far can a transparent, training-free prompted segmentation algorithm go on real benchmark images?
+Prompted segmentation has become a practical interface for general-purpose vision systems. Classic interactive systems such as GrabCut showed that a loose user box can provide enough foreground and background evidence for object extraction \cite{grabcut}. Later deep interactive methods studied stronger point-based guidance, including extreme-point prompts in DEXTR \cite{dextr}, iterative click correction with mask guidance \cite{ritm}, and click encoding with vision transformers in SimpleClick \cite{simpleclick}. More recently, the Segment Anything Model (SAM) demonstrated a general promptable segmentation interface that accepts points and boxes and transfers zero-shot to new tasks \cite{sam}. This project therefore asks a complementary question: how far can a transparent, training-free prompted segmentation algorithm go on real benchmark images, and how sensitive is SAM to the structure of its prompts?
 
-The task follows the course-design direction of zero-shot prompt segmentation. The benchmark is PASCAL VOC 2012. For each selected validation sample, the largest semantic object component is converted into a binary target mask. The prompt consists of a tight bounding box and an interior center point derived from the distance transform of the target mask.
+The task follows the course-design direction of zero-shot prompt segmentation. The benchmark is PASCAL VOC 2012, a standard object recognition and segmentation benchmark with semantic labels and evaluation protocols \cite{voc}. For each selected validation sample, the largest semantic object component is converted into a binary target mask. The prompt consists of a tight bounding box and an interior center point derived from the distance transform of the target mask.
 
 \section{Method}
 
@@ -37,13 +37,13 @@ The baseline estimates the target appearance from a small disk around the center
 
 \subsection{Robust Superpixel Prompt Segmentation}
 
-The robust method first runs the center-color baseline to obtain a conservative foreground seed. It then oversegments the image into SLIC superpixels. Each superpixel is represented by mean Lab color and normalized spatial coordinates. Foreground prototypes are estimated from superpixels intersecting the center-point disk, while background prototypes are estimated from superpixels outside the prompt box and along the box border.
+The robust method first runs the center-color baseline to obtain a conservative foreground seed. It then oversegments the image into SLIC superpixels, which were designed to provide efficient boundary-aware image primitives \cite{slic}. Each superpixel is represented by mean Lab color and normalized spatial coordinates. Foreground prototypes are estimated from superpixels intersecting the center-point disk, while background prototypes are estimated from superpixels outside the prompt box and along the box border.
 
 Each superpixel receives a foreground score based on its relative distance to foreground and background prototypes, combined with a weak spatial prior centered at the prompt point. The final mask is the union of the conservative color seed and superpixel consensus across slightly perturbed boxes, followed by morphology and point-connected component selection.
 
 \section{Experimental Setup}
 
-The experiment uses a compact subset of PASCAL VOC 2012 validation samples from the Hugging Face mirror \texttt{nateraw/pascal-voc-2012}. The subset contains 30 samples and 12 object classes. The evaluation reports Intersection over Union (IoU) and Dice score:
+The experiment uses a compact subset of PASCAL VOC 2012 validation samples \cite{voc} from the Hugging Face mirror \texttt{nateraw/pascal-voc-2012}. The subset contains 30 samples and 12 object classes. The evaluation reports Intersection over Union (IoU) and Dice score:
 
 \[
 \text{IoU} = \frac{|P \cap G|}{|P \cup G|}, \qquad
@@ -107,7 +107,7 @@ The robustness benchmark reveals the main limitation of prompt segmentation. SAM
 
 \subsection{Prompt Uncertainty Research Experiment}
 
-The robustness result motivates a more precise research question: which prompt channel actually carries the useful information, and can multiple plausible prompts recover performance after noise? The prompt uncertainty experiment therefore evaluates three clean prompt modalities, decomposes point noise and box noise, and tests multi-prompt selection around a noisy observation. For efficiency and reproducibility, SAM image embeddings are computed once per sample and reused for all prompt queries.
+The robustness result motivates a more precise research question: which prompt channel actually carries the useful information, and can multiple plausible prompts recover performance after noise? This is directly connected to the broader interactive-segmentation literature: box-driven methods such as GrabCut emphasize localization and background exclusion \cite{grabcut}, while click-driven methods emphasize corrective user feedback \cite{ritm,simpleclick}. The prompt uncertainty experiment therefore evaluates three clean prompt modalities, decomposes point noise and box noise, and tests multi-prompt selection around a noisy observation. For efficiency and reproducibility, SAM image embeddings are computed once per sample and reused for all prompt queries.
 
 \begin{table}[h]
 \centering
@@ -200,7 +200,7 @@ The prompt uncertainty experiment deepens this conclusion. The original intuitio
 
 \section{SAM Comparison and Lightweight Baseline}
 
-PromptLite-Seg is intentionally designed so that its main baseline remains SAM-free, CPU-friendly, deterministic, and easy to inspect. With GPU resources available, the project also evaluates SAM ViT-B using the same point-and-box prompts. SAM achieves much higher absolute accuracy, especially on objects with complex boundaries, while the lightweight method provides an interpretable baseline and a useful diagnostic fallback.
+PromptLite-Seg is intentionally designed so that its main baseline remains SAM-free, CPU-friendly, deterministic, and easy to inspect. With GPU resources available, the project also evaluates SAM ViT-B using the same point-and-box prompts. This comparison is important because SAM is explicitly designed as a promptable foundation segmentation model \cite{sam}, whereas PromptLite-Seg is closer in spirit to transparent classical interactive methods \cite{grabcut,slic}. SAM achieves much higher absolute accuracy, especially on objects with complex boundaries, while the lightweight method provides an interpretable baseline and a useful diagnostic fallback.
 
 The deeper finding is that a stronger model is not automatically robust to prompt uncertainty. The oracle best-of-two prompt selection only slightly improves SAM, while score-based prompt selection is worse than simply keeping the noisy prompt. This exposes a concrete future direction: robust prompted segmentation should model prompt uncertainty explicitly, for example by maintaining multiple plausible prompts or by learning a calibrated prompt-quality estimator.
 
@@ -211,8 +211,33 @@ This project implements and evaluates a zero-shot prompted segmentation pipeline
 \begin{thebibliography}{9}
 \bibitem{voc}
 Mark Everingham, Luc Van Gool, Christopher K. I. Williams, John Winn, and Andrew Zisserman.
-The PASCAL Visual Object Classes Challenge 2012.
+The PASCAL Visual Object Classes Challenge.
+\emph{International Journal of Computer Vision}, 2010; VOC 2012 challenge data.
 \url{https://www.robots.ox.ac.uk/~vgg/projects/pascal/VOC/voc2012/}
+
+\bibitem{grabcut}
+Carsten Rother, Vladimir Kolmogorov, and Andrew Blake.
+GrabCut: Interactive Foreground Extraction using Iterated Graph Cuts.
+\emph{ACM Transactions on Graphics (SIGGRAPH)}, 2004.
+\url{https://dl.acm.org/doi/10.1145/1015706.1015720}
+
+\bibitem{dextr}
+Kevis-Kokitsi Maninis, Sergi Caelles, Jordi Pont-Tuset, and Luc Van Gool.
+Deep Extreme Cut: From Extreme Points to Object Segmentation.
+\emph{CVPR}, 2018.
+\url{https://arxiv.org/abs/1711.09081}
+
+\bibitem{ritm}
+Konstantin Sofiiuk, Ilia A. Petrov, and Anton Konushin.
+Reviving Iterative Training with Mask Guidance for Interactive Segmentation.
+\emph{arXiv:2102.06583}, 2021.
+\url{https://arxiv.org/abs/2102.06583}
+
+\bibitem{simpleclick}
+Qin Liu, Zhenlin Xu, Gedas Bertasius, and Marc Niethammer.
+SimpleClick: Interactive Image Segmentation with Simple Vision Transformers.
+\emph{ICCV}, 2023.
+\url{https://arxiv.org/abs/2210.11006}
 
 \bibitem{sam}
 Alexander Kirillov et al.
@@ -224,6 +249,7 @@ ICCV 2023.
 Radhakrishna Achanta et al.
 SLIC Superpixels Compared to State-of-the-Art Superpixel Methods.
 IEEE TPAMI 2012.
+\url{https://doi.org/10.1109/TPAMI.2012.120}
 \end{thebibliography}
 
 \end{document}
