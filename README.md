@@ -63,6 +63,12 @@ Run the research-style prompt uncertainty benchmark:
 .\.venv-sam\Scripts\python.exe scripts/run_prompt_uncertainty_experiment.py --max-samples 30 --trials 2 --ensemble-size 5 --device cuda
 ```
 
+Generate statistical reliability analysis:
+
+```powershell
+python scripts/analyze_statistics.py
+```
+
 The main outputs are:
 
 - `outputs/metrics.csv`: per-sample IoU and Dice.
@@ -79,10 +85,12 @@ The main outputs are:
 - `outputs/prompt_uncertainty/prompt_modality.png`: point-only, box-only, and point+box SAM comparison.
 - `outputs/prompt_uncertainty/noise_decomposition.png`: point-noise versus box-noise sensitivity.
 - `outputs/prompt_uncertainty/uncertainty_ensemble.png`: multi-prompt selection under moderate prompt noise.
+- `outputs/statistics/paired_effects.csv`: paired bootstrap confidence intervals and sign-flip permutation tests.
+- `outputs/statistics/paired_effects.png`: visual summary of paired IoU effects.
 
 ## Key Finding
 
-The strongest new result is that SAM ViT-B is more box-dominated than point-dominated on this benchmark. Clean box-only prompts reach 0.8565 mean IoU, while clean point+box prompts reach 0.8325 and point-only prompts reach 0.4430. Under moderate noise, point noise remains near clean performance at 0.8507 IoU, but box noise drops to 0.6462. A multi-prompt score-selection strategy recovers moderate point+box noise from 0.6385 to 0.6796 IoU, with an oracle upper bound of 0.7401.
+The strongest new result is that SAM ViT-B is more box-dominated than point-dominated on this benchmark. Clean box-only prompts reach 0.8565 mean IoU, while clean point+box prompts reach 0.8325 and point-only prompts reach 0.4430. The paired bootstrap CI for box-only over point+box is `[0.0080, 0.0421]`, with sign-flip `p=0.0092`. Under moderate noise, point noise remains near clean performance at 0.8507 IoU, but box noise drops to 0.6462; the paired box-noise vs point-noise delta is `-0.2044` IoU with CI `[-0.2655, -0.1474]`. Multi-prompt score selection has a positive mean improvement over a single noisy prompt, but its CI crosses zero, so the current evidence treats it as promising rather than statistically confirmed.
 
 ## Report
 

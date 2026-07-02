@@ -16,7 +16,7 @@
 \maketitle
 
 \begin{abstract}
-PromptLite-Seg studies zero-shot prompted segmentation on PASCAL VOC 2012. Given a weak prompt consisting of a center point and a bounding box, the goal is to segment the target object without training on the benchmark. The project implements a simple center-color baseline, a stronger SAM-free robust superpixel method, and a GPU SAM ViT-B comparison. It further introduces prompt-robustness and prompt-uncertainty experiments. On a 30-sample VOC 2012 subset, clean SAM ViT-B reaches 0.8325 mean IoU with point+box prompts, while box-only prompts surprisingly reach 0.8565. Under moderate prompt noise, box perturbation drops SAM to 0.6462 IoU, but point perturbation remains at 0.8507. This shows that prompt quality is not a single scalar: the bounding box is the dominant information channel in this benchmark.
+PromptLite-Seg studies zero-shot prompted segmentation on PASCAL VOC 2012. Given a weak prompt consisting of a center point and a bounding box, the goal is to segment the target object without training on the benchmark. The project implements a simple center-color baseline, a stronger SAM-free robust superpixel method, and a GPU SAM ViT-B comparison. It further introduces prompt-robustness, prompt-uncertainty, and paired statistical reliability analyses. On a 30-sample VOC 2012 subset, clean SAM ViT-B reaches 0.8325 mean IoU with point+box prompts, while box-only prompts surprisingly reach 0.8565. The paired bootstrap confidence interval for this box-only gain is [0.0080, 0.0421]. Under moderate prompt noise, box perturbation drops SAM to 0.6462 IoU, but point perturbation remains at 0.8507. This shows that prompt quality is not a single scalar: the bounding box is the dominant information channel in this benchmark.
 \end{abstract}
 
 \section{Introduction}
@@ -60,6 +60,7 @@ python scripts/analyze_results.py
   --max-samples 30 --trials 2 --include-sam --device cuda
 .\.venv-sam\Scripts\python.exe scripts/run_prompt_uncertainty_experiment.py ^
   --max-samples 30 --trials 2 --ensemble-size 5 --device cuda
+python scripts/analyze_statistics.py
 \end{verbatim}
 
 \section{Results}
@@ -130,7 +131,29 @@ moderate ensemble & oracle best-of-six & 0.7401 & 0.8284 \\
 \end{tabular}
 \end{table}
 
-The first surprising finding is that box-only prompting is stronger than point+box prompting on this subset. The point prompt is not useless, but it can over-constrain SAM when the box already localizes the object well. The second finding is sharper: point perturbation barely hurts SAM, while box perturbation is the main failure mode. The third finding is constructive. Under moderate point+box noise, score-based multi-prompt selection improves mean IoU from 0.6385 to 0.6796, and the oracle best-of-six reaches 0.7401. This gap estimates the remaining headroom for a calibrated prompt-quality estimator.
+The first surprising finding is that box-only prompting is stronger than point+box prompting on this subset. The point prompt is not useless, but it can over-constrain SAM when the box already localizes the object well. The second finding is sharper: point perturbation barely hurts SAM, while box perturbation is the main failure mode. The third finding is constructive but less statistically secure. Under moderate point+box noise, score-based multi-prompt selection improves mean IoU from 0.6385 to 0.6796, and the oracle best-of-six reaches 0.7401. This gap estimates the remaining headroom for a calibrated prompt-quality estimator.
+
+\subsection{Statistical Reliability}
+
+To avoid relying only on point estimates, the project adds paired statistical analysis over sample-level deltas. Each comparison uses a paired bootstrap 95\% confidence interval and a paired sign-flip permutation test. For prompt-noise and ensemble experiments with two trials per sample, trial results are averaged within each sample before testing, so the effective unit remains the image rather than the perturbation trial.
+
+\begin{table}[h]
+\centering
+\caption{Paired IoU effects with 95\% bootstrap confidence intervals.}
+\begin{tabular}{lrrr}
+\hline
+Comparison & Delta IoU & 95\% CI & $p$ \\
+\hline
+Robust superpixel vs. center-color & 0.0562 & [0.0301, 0.0891] & 0.00002 \\
+SAM box-only vs. point+box & 0.0240 & [0.0080, 0.0421] & 0.00922 \\
+Moderate box noise vs. point noise & -0.2044 & [-0.2655, -0.1474] & 0.00002 \\
+Score selection vs. single noisy prompt & 0.0411 & [-0.0044, 0.1029] & 0.15418 \\
+Oracle best-of-six vs. single noisy prompt & 0.1017 & [0.0593, 0.1589] & 0.00002 \\
+\hline
+\end{tabular}
+\end{table}
+
+The statistical layer strengthens three conclusions and weakens one. The lightweight robust superpixel improvement is not just an aggregate artifact: its confidence interval is entirely positive. The box-only SAM result is also supported by a positive paired interval. The box-noise penalty is large and stable. However, score-based multi-prompt selection is only a promising trend in the current subset, because its interval crosses zero and the sign-flip test is not significant. The oracle result remains significant, so the recoverable headroom exists, but the current selection rule is not yet a reliable solution.
 
 \begin{figure}[h]
 \centering
@@ -170,6 +193,12 @@ The first surprising finding is that box-only prompting is stronger than point+b
 
 \begin{figure}[h]
 \centering
+\includegraphics[width=0.86\linewidth]{../outputs/statistics/paired_effects.png}
+\caption{Paired IoU effects with 95\% bootstrap confidence intervals.}
+\end{figure}
+
+\begin{figure}[h]
+\centering
 \includegraphics[width=0.86\linewidth]{../outputs/analysis/per_class_iou.png}
 \caption{Per-class mean IoU. The strongest gains appear on horse, tvmonitor, and aeroplane examples.}
 \end{figure}
@@ -196,17 +225,17 @@ The robust method improves the prompt interface in three ways. First, superpixel
 
 The hardest cases include train, bicycle, diningtable, and boat images. Trains and dining tables often contain repetitive interior structures, bicycles contain thin parts that are easy to miss, and boats may include strong background colors inside the prompt box. The robustness experiment further shows that prompt noise is not a small implementation detail: it changes the ranking and reliability of methods.
 
-The prompt uncertainty experiment deepens this conclusion. The original intuition might be that the point and box are simply two helpful prompts whose errors add smoothly. The measurements reject that assumption. In this benchmark, the box dominates localization, while the point behaves more like a weak disambiguation signal. Therefore, robust prompted segmentation should not treat all prompt noise equally. It should either protect the box channel, sample multiple plausible boxes, or learn a reliability model that predicts when SAM's internal score is well calibrated.
+The prompt uncertainty experiment deepens this conclusion. The original intuition might be that the point and box are simply two helpful prompts whose errors add smoothly. The measurements reject that assumption. In this benchmark, the box dominates localization, while the point behaves more like a weak disambiguation signal. The confidence intervals show that this is not merely a visual impression. Therefore, robust prompted segmentation should not treat all prompt noise equally. It should either protect the box channel, sample multiple plausible boxes, or learn a reliability model that predicts when SAM's internal score is well calibrated.
 
 \section{SAM Comparison and Lightweight Baseline}
 
 PromptLite-Seg is intentionally designed so that its main baseline remains SAM-free, CPU-friendly, deterministic, and easy to inspect. With GPU resources available, the project also evaluates SAM ViT-B using the same point-and-box prompts. This comparison is important because SAM is explicitly designed as a promptable foundation segmentation model \cite{sam}, whereas PromptLite-Seg is closer in spirit to transparent classical interactive methods \cite{grabcut,slic}. SAM achieves much higher absolute accuracy, especially on objects with complex boundaries, while the lightweight method provides an interpretable baseline and a useful diagnostic fallback.
 
-The deeper finding is that a stronger model is not automatically robust to prompt uncertainty. The oracle best-of-two prompt selection only slightly improves SAM, while score-based prompt selection is worse than simply keeping the noisy prompt. This exposes a concrete future direction: robust prompted segmentation should model prompt uncertainty explicitly, for example by maintaining multiple plausible prompts or by learning a calibrated prompt-quality estimator.
+The deeper finding is that a stronger model is not automatically robust to prompt uncertainty. The oracle prompt selection significantly improves SAM under moderate noise, but the practical score-selection rule is not statistically confirmed on the current subset. This exposes a concrete future direction: robust prompted segmentation should model prompt uncertainty explicitly, for example by maintaining multiple plausible prompts or by learning a calibrated prompt-quality estimator.
 
 \section{Conclusion}
 
-This project implements and evaluates a zero-shot prompted segmentation pipeline on PASCAL VOC 2012. It satisfies the course requirement of running an algorithm on a benchmark, and it adds analysis beyond aggregate scores through per-class, success/failure, SAM comparison, prompt robustness, and prompt uncertainty experiments. The main research conclusion is that prompt quality is a structured bottleneck: SAM is strong under clean prompts, but box noise causes substantial degradation, point noise is comparatively harmless on this subset, and multi-prompt selection can recover part of the lost performance.
+This project implements and evaluates a zero-shot prompted segmentation pipeline on PASCAL VOC 2012. It satisfies the course requirement of running an algorithm on a benchmark, and it adds analysis beyond aggregate scores through per-class, success/failure, SAM comparison, prompt robustness, prompt uncertainty, and statistical reliability experiments. The main research conclusion is that prompt quality is a structured bottleneck: SAM is strong under clean prompts, box noise causes statistically stable degradation, point noise is comparatively harmless on this subset, and multi-prompt selection has measurable headroom but requires better calibration.
 
 \begin{thebibliography}{9}
 \bibitem{voc}
