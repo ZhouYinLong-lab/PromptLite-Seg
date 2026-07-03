@@ -23,6 +23,18 @@ python -m pip install -r requirements.txt
 
 ## Run
 
+For the CPU-friendly reproduction path:
+
+```powershell
+.\scripts\run_all.ps1
+```
+
+For the full GPU-backed reproduction path, first prepare the SAM environment and checkpoint as shown below, then run:
+
+```powershell
+.\scripts\run_all.ps1 -IncludeSam -IncludePromptUncertainty
+```
+
 Download a compact PASCAL VOC 2012 validation subset:
 
 ```powershell
@@ -68,6 +80,14 @@ Generate statistical reliability analysis:
 ```powershell
 python scripts/analyze_statistics.py
 ```
+
+## Reproducibility Checklist
+
+- The default `.\scripts\run_all.ps1` path is CPU-friendly and reproduces the lightweight baseline, per-class analysis, and any statistics possible from available committed outputs.
+- GPU-backed SAM experiments are explicit opt-in via `-IncludeSam`; the script checks for `.venv-sam` and `checkpoints/sam_vit_b_01ec64.pth` before running them.
+- Prompt uncertainty experiments are explicit opt-in via `-IncludePromptUncertainty` because they take longer and require SAM.
+- Randomized prompt perturbation and statistical analysis use deterministic seeds, so committed metrics can be reproduced on the same dataset subset.
+- The report PDF is generated from `reports/report.tex`; final layout should be checked visually after recompilation.
 
 The main outputs are:
 

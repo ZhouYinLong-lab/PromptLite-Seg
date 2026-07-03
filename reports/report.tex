@@ -53,6 +53,7 @@ The experiment uses a compact subset of PASCAL VOC 2012 validation samples \cite
 The reproducible commands are:
 
 \begin{verbatim}
+.\scripts\run_all.ps1
 python scripts/download_voc_subset.py --count 30
 python scripts/run_experiment.py --max-samples 30
 python scripts/analyze_results.py
@@ -232,6 +233,16 @@ The prompt uncertainty experiment deepens this conclusion. The original intuitio
 PromptLite-Seg is intentionally designed so that its main baseline remains SAM-free, CPU-friendly, deterministic, and easy to inspect. With GPU resources available, the project also evaluates SAM ViT-B using the same point-and-box prompts. This comparison is important because SAM is explicitly designed as a promptable foundation segmentation model \cite{sam}, whereas PromptLite-Seg is closer in spirit to transparent classical interactive methods \cite{grabcut,slic}. SAM achieves much higher absolute accuracy, especially on objects with complex boundaries, while the lightweight method provides an interpretable baseline and a useful diagnostic fallback.
 
 The deeper finding is that a stronger model is not automatically robust to prompt uncertainty. The oracle prompt selection significantly improves SAM under moderate noise, but the practical score-selection rule is not statistically confirmed on the current subset. This exposes a concrete future direction: robust prompted segmentation should model prompt uncertainty explicitly, for example by maintaining multiple plausible prompts or by learning a calibrated prompt-quality estimator.
+
+\section{Threats to Validity}
+
+The main limitation is dataset scale. The project uses a compact 30-sample subset of PASCAL VOC 2012 to keep the course artifact reproducible on a local machine. Paired bootstrap intervals reduce overinterpretation of sample-level differences, but they do not replace evaluation on the full validation set or on other datasets.
+
+The prompt construction is also idealized. Points and boxes are derived from ground-truth masks rather than collected from human annotators. The perturbation benchmarks approximate annotation noise, but real user clicks and boxes may have different error distributions. Therefore, the box-dominance conclusion should be read as a finding for this controlled prompt-generation pipeline, not as a universal statement about all interactive segmentation settings.
+
+The SAM experiments depend on a specific SAM ViT-B checkpoint and CUDA environment. Results may differ with SAM ViT-L, SAM ViT-H, SAM2-style models, or different preprocessing libraries. To make the artifact easier to reproduce, the repository includes a CPU-friendly default script, \texttt{scripts/run\_all.ps1}, and keeps GPU experiments behind explicit flags.
+
+Finally, the multi-prompt selection result is intentionally reported with caution. Score selection improves mean IoU, but its confidence interval crosses zero on the current subset. The significant oracle gain shows that recoverable headroom exists, but a reliable automatic selector remains future work rather than a completed claim.
 
 \section{Conclusion}
 

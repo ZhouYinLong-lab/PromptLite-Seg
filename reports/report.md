@@ -42,6 +42,7 @@ Metrics:
 Commands:
 
 ```bash
+.\scripts\run_all.ps1
 python scripts/download_voc_subset.py --count 30
 python scripts/run_experiment.py --data-dir data/voc_subset --output-dir outputs --max-samples 30
 .\.venv-sam\Scripts\python.exe scripts/run_robustness_experiment.py --max-samples 30 --trials 2 --include-sam --device cuda
@@ -155,7 +156,17 @@ The robustness experiment adds a stronger research conclusion. The project does 
 
 The prompt uncertainty experiment further shows that prompt quality is structured rather than scalar. The bounding box is the dominant prompt channel in this benchmark, and the confidence intervals show that this is not merely a visual impression. Future robustness methods should focus on box uncertainty, multi-box sampling, or reliability estimation rather than treating point and box errors as equivalent.
 
-## 6. Conclusion
+## 6. Threats to Validity
+
+The main limitation is dataset scale. The project uses a compact 30-sample subset of PASCAL VOC 2012 to keep the course artifact reproducible on a local machine. Paired bootstrap intervals reduce overinterpretation of sample-level differences, but they do not replace evaluation on the full validation set or on other datasets.
+
+The prompt construction is also idealized. Points and boxes are derived from ground-truth masks rather than collected from human annotators. The perturbation benchmarks approximate annotation noise, but real user clicks and boxes may have different error distributions. Therefore, the box-dominance conclusion should be read as a finding for this controlled prompt-generation pipeline, not as a universal statement about all interactive segmentation settings.
+
+The SAM experiments depend on a specific SAM ViT-B checkpoint and CUDA environment. Results may differ with SAM ViT-L, SAM ViT-H, SAM2-style models, or different preprocessing libraries. To make the artifact easier to reproduce, the repository includes a CPU-friendly default script, `scripts/run_all.ps1`, and keeps GPU experiments behind explicit flags.
+
+Finally, the multi-prompt selection result is intentionally reported with caution. Score selection improves mean IoU, but its confidence interval crosses zero on the current subset. The significant oracle gain shows that recoverable headroom exists, but a reliable automatic selector remains future work rather than a completed claim.
+
+## 7. Conclusion
 
 This project implements and evaluates a zero-shot prompted segmentation pipeline on PASCAL VOC 2012. The main contribution is a reproducible CPU-friendly baseline, an enhanced robust superpixel method, and a GPU-backed analysis of prompt uncertainty with paired statistical evidence. The project satisfies the course requirement of running an algorithm on a benchmark and adds a clear research conclusion: SAM is strong, but its robustness depends primarily on the bounding-box channel, and multi-prompt selection has recoverable headroom that still needs better calibration.
 
