@@ -190,6 +190,15 @@ def validate_metric_design(
         if numeric.isna().any():
             raise ValueError(f"SAM metrics contain non-numeric {metric}")
         sam[metric] = numeric
+    noisy = sam["experiment"] != "modality"
+    box_iou = pd.to_numeric(sam["box_iou"], errors="coerce")
+    if box_iou[noisy].isna().any() or box_iou[~noisy].notna().any():
+        raise ValueError("SAM box_iou must be numeric for noisy rows and blank for modality rows")
+    sam["box_iou"] = box_iou
+    point_hit_text = sam["point_hit"].astype(str).str.lower()
+    if not point_hit_text[noisy].isin({"true", "false"}).all() or (point_hit_text[~noisy] != "").any():
+        raise ValueError("SAM point_hit must be boolean for noisy rows and blank for modality rows")
+    sam["point_hit"] = point_hit_text.map({"true": True, "false": False})
     for label, frame in (("CPU", cpu), ("SAM", sam)):
         for metric in ("iou", "dice"):
             valid = frame[metric].between(0.0, 1.0, inclusive="both")
@@ -291,7 +300,7 @@ def main() -> None:
     point_rows = sam[(sam["experiment"] == "noise_decomposition") & (sam["condition"] == "point_noise")]
     box_rows = sam[(sam["experiment"] == "noise_decomposition") & (sam["condition"] == "box_noise")]
     quality = {
-        "moderate_point_hit_rate": float((point_rows["point_hit"].astype(str).str.lower() == "true").mean()),
+        "moderate_point_hit_rate": float(point_rows["point_hit"].mean()),
         "moderate_box_mean_iou": float(box_rows["box_iou"].mean()),
     }
 

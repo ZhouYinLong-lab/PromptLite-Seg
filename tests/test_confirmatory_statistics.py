@@ -33,7 +33,7 @@ def test_cpu_summary_distinguishes_failure_aggregation() -> None:
 
     assert grabcut["num_failures"] == 8
     assert grabcut["mean_iou_success_only"] > grabcut["mean_iou_failure_zero"]
-    assert grabcut["mean_iou_failure_zero"] == 0.6877666894409938
+    assert grabcut["mean_iou_failure_zero"] == 0.6859115017253278
 
 
 def test_confirmatory_design_rejects_a_missing_method_row() -> None:
@@ -45,3 +45,16 @@ def test_confirmatory_design_rejects_a_missing_method_row() -> None:
 
     with pytest.raises(ValueError, match="exactly one row"):
         validate_metric_design(partial_cpu, sam, manifest, protocol)
+
+
+def test_confirmatory_design_types_optional_sam_quality_columns() -> None:
+    cpu = pd.read_csv(ROOT / "artifacts/confirmatory/cpu/metrics.csv", keep_default_na=False)
+    sam = pd.read_csv(ROOT / "artifacts/confirmatory/sam/metrics.csv", keep_default_na=False)
+    manifest = load_manifest(ROOT / "protocol/manifests/confirmatory_validation.jsonl")
+    protocol = json.loads((ROOT / "protocol/research_protocol.json").read_text(encoding="utf-8"))
+
+    _, validated = validate_metric_design(cpu, sam, manifest, protocol)
+
+    noisy = validated[validated["experiment"] != "modality"]
+    assert noisy["box_iou"].notna().all()
+    assert noisy["point_hit"].isin({True, False}).all()

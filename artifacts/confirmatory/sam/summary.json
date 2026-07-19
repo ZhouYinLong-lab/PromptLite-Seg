@@ -1,5 +1,9 @@
 {
-  "git_commit": "4fc670b458d2dd6bf56580795bf42d635d7d9ece",
+  "git_commit": "e7cbe54a1eedff6965e500d1775ecd3e65f2ecc0",
+  "run_fingerprint": "11741ea4b29f2c54b1e1e95e6572e907c6c5fe481065babeb0379004ff6280d0",
+  "protocol_sha256": "ca3c382f3847469a50389822cb6a90dce50d0ffaa15ed79211f37470556875e2",
+  "manifest_sha256": "7b89d688548708a7dca6ede27824294c6280710e7078e56b45ab53f70ef1fade",
+  "dataset_sha256": "9cc5140ce4283809f668ff87dc3d7efc13b76b693da2f43d7c42a1d7b3f90c9b",
   "confirmatory": true,
   "num_samples": 1449,
   "num_rows": 55062,
@@ -8,7 +12,7 @@
   "device": "cuda",
   "checkpoint_sha256": "ec2df62732614e57411cdcf32a23ffdf28910380d03139ee0f4fcbe91eb8c912",
   "completed_before_resume": 0,
-  "elapsed_seconds_this_run": 675.3366347999981,
-  "process_rss_mb": 2111.60546875,
+  "elapsed_seconds_this_run": 744.4290651999909,
+  "process_rss_mb": 2142.109375,
   "peak_cuda_memory_mb": 2772.71142578125
 }

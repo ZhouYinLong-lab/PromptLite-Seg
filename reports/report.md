@@ -6,7 +6,7 @@
 
 ## Abstract
 
-Promptable segmentation systems are commonly evaluated with clean points and boxes, although real prompts are uncertain and different prompt channels do not admit directly comparable perturbation scales. We present a pre-specified evaluation of zero-shot point-and-box segmentation on all 1,449 PASCAL VOC 2012 validation images. A disjoint, class-balanced 100-image subset of VOC train is used only to calibrate point displacement and box perturbation to matched observable quality targets: aggregate point hit rate and mean box IoU. We compare a center-color baseline, GrabCut, a transparent robust-superpixel method, three component ablations, and SAM ViT-B under point-only, box-only, and point-plus-box prompting. Three primary hypotheses are fixed before confirmatory evaluation and tested with paired bootstrap intervals, sign-flip permutation tests, and Holm correction. The robust-superpixel method improves over center-color by 0.0632 mean IoU (95% CI [0.0578, 0.0686]); score-based SAM candidate selection improves over a single noisy prompt by 0.0204 [0.0145, 0.0261]; and, at approximately matched prompt quality, point-noise IoU exceeds box-noise IoU by 0.1067 [0.0996, 0.1138]. All three effects survive Holm correction. Stronger baselines and ablations qualify the contribution: GrabCut outperforms the proposed lightweight method, the color seed and spatial prior are useful, and multi-box consensus has essentially zero average benefit. The result is less a claim of a new state of the art than a reproducible account of which prompt channel fails, which lightweight components matter, and which apparent gains survive representative evaluation.
+Promptable segmentation systems are commonly evaluated with clean points and boxes, although real prompts are uncertain and different prompt channels do not admit directly comparable perturbation scales. We present a pre-specified evaluation of zero-shot point-and-box segmentation on all 1,449 PASCAL VOC 2012 validation images. A disjoint, class-balanced 100-image subset of VOC train is used only to calibrate point displacement and box perturbation to matched observable quality targets: aggregate point hit rate and mean box IoU. We compare a center-color baseline, GrabCut, a transparent robust-superpixel method, three component ablations, and SAM ViT-B under point-only, box-only, and point-plus-box prompting. Three primary hypotheses are fixed before confirmatory evaluation and tested with paired bootstrap intervals, sign-flip permutation tests, and Holm correction. The robust-superpixel method improves over center-color by 0.0640 mean IoU (95% CI [0.0585, 0.0696]); score-based SAM candidate selection improves over a single noisy prompt by 0.0193 [0.0135, 0.0251]; and, at approximately matched prompt quality, point-noise IoU exceeds box-noise IoU by 0.1069 [0.0997, 0.1138]. All three effects survive Holm correction. Stronger baselines and ablations qualify the contribution: GrabCut outperforms the proposed lightweight method, the color seed and spatial prior are useful, and multi-box consensus has essentially zero average benefit. The result is less a claim of a new state of the art than a reproducible account of which prompt channel fails, which lightweight components matter, and which apparent gains survive representative evaluation.
 
 ## 1. Introduction
 
@@ -107,40 +107,40 @@ Each effect uses a paired 95% bootstrap interval with 20,000 replicates and a pa
 
 | Method | Mean IoU | Mean Dice | Median latency | Failures |
 | --- | ---: | ---: | ---: | ---: |
-| Center Color | 0.5417 | 0.6768 | 13.4 ms | 0 |
-| GrabCut point+box | **0.6878** | **0.7782** | 416.8 ms | 8 |
-| Robust Superpixel | 0.6049 | 0.7351 | 204.2 ms | 0 |
-| without color seed | 0.4645 | 0.5989 | 189.6 ms | 0 |
-| without spatial prior | 0.5838 | 0.7162 | 205.0 ms | 0 |
-| single box | 0.6049 | 0.7351 | 193.4 ms | 0 |
+| Center Color | 0.5404 | 0.6753 | 13.1 ms | 0 |
+| GrabCut point+box | **0.6859** | **0.7751** | 416.8 ms | 8 |
+| Robust Superpixel | 0.6044 | 0.7345 | 199.8 ms | 0 |
+| without color seed | 0.4633 | 0.5977 | 187.0 ms | 0 |
+| without spatial prior | 0.5827 | 0.7152 | 197.6 ms | 0 |
+| single box | 0.6043 | 0.7344 | 188.5 ms | 0 |
 
-H1 is supported: Robust Superpixel improves over Center Color by 0.0632 IoU, with 95% CI [0.0578, 0.0686] and Holm-adjusted p=0.000060. However, GrabCut is substantially stronger. The color seed contributes approximately 0.1404 IoU, and the spatial prior contributes 0.0211. Removing multi-box consensus changes mean IoU by only +0.00003, contradicting the exploratory intuition that box voting was an important source of robustness.
+H1 is supported: Robust Superpixel improves over Center Color by 0.0640 IoU, with 95% CI [0.0585, 0.0696] and Holm-adjusted p=0.000060. However, GrabCut is substantially stronger. The color seed contributes approximately 0.1411 IoU, and the spatial prior contributes 0.0217. Removing multi-box consensus changes mean IoU by only -0.00004, contradicting the exploratory intuition that box voting was an important source of robustness.
 
 ### 5.2 Clean SAM prompt modality
 
 | Prompt | Mean IoU | Mean Dice |
 | --- | ---: | ---: |
-| Point only | 0.5346 | 0.6198 |
-| Box only | 0.8469 | 0.9051 |
-| Point + box | **0.8476** | **0.9076** |
+| Point only | 0.5389 | 0.6235 |
+| Box only | 0.8479 | 0.9058 |
+| Point + box | **0.8491** | **0.9087** |
 
-Point-plus-box is only 0.0007 IoU above box-only on average. The full-validation result therefore refines the exploratory claim: SAM is strongly box-dominated, but box-only is not meaningfully stronger than point-plus-box in the aggregate.
+Point-plus-box is only 0.0012 IoU above box-only on average. The full-validation result therefore refines the exploratory claim: SAM is strongly box-dominated, but box-only is not meaningfully stronger than point-plus-box in the aggregate.
 
 ### 5.3 Calibrated prompt noise
 
-Moderate point noise yields 0.8184 mean IoU, whereas matched-quality box noise yields 0.7117. H3's paired difference is +0.1067, with 95% CI [0.0996, 0.1138] and Holm-adjusted p=0.000060. The result supports channel-specific sensitivity even after prompt quality is approximately matched.
+Moderate point noise yields 0.8194 mean IoU, whereas matched-quality box noise yields 0.7125. H3's paired difference is +0.1069, with 95% CI [0.0997, 0.1138] and Holm-adjusted p=0.000060. The result supports channel-specific sensitivity even after prompt quality is approximately matched.
 
 ### 5.4 Multi-prompt uncertainty
 
 | Selector under moderate point+box noise | Mean IoU | Mean Dice |
 | --- | ---: | ---: |
-| Single noisy prompt | 0.6521 | 0.7405 |
-| SAM score selection | **0.6725** | 0.7537 |
-| Consistency medoid | 0.6766 | **0.7644** |
-| Vote consensus | 0.6705 | 0.7619 |
+| Single noisy prompt | 0.6529 | 0.7410 |
+| SAM score selection | **0.6723** | 0.7532 |
+| Consistency medoid | 0.6758 | **0.7634** |
+| Vote consensus | 0.6710 | 0.7620 |
 | Oracle best-of-six | 0.7821 | 0.8601 |
 
-H2 is supported: score selection improves over the single prompt by 0.0204 IoU, with 95% CI [0.0145, 0.0261] and Holm-adjusted p=0.000060. The Oracle gap is much larger (+0.1300 IoU), but it is descriptive and cannot be interpreted as deployable performance. Consistency medoid has a slightly higher uncorrected mean than score selection; it was not a pre-specified primary comparison and is reported as exploratory.
+H2 is supported: score selection improves over the single prompt by 0.0193 IoU, with 95% CI [0.0135, 0.0251] and Holm-adjusted p=0.000060. The Oracle gap is much larger (+0.1292 IoU), but it is descriptive and cannot be interpreted as deployable performance. Consistency medoid has a slightly higher uncorrected mean than score selection; it was not a pre-specified primary comparison and is reported as exploratory.
 
 ## 6. Discussion
 

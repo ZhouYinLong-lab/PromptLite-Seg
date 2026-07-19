@@ -5,9 +5,9 @@ Oracle selections are descriptive upper bounds and are not primary hypotheses.
 
 | Hypothesis | Mean IoU delta | 95% CI | raw p | Holm p | Reject |
 | --- | ---: | ---: | ---: | ---: | --- |
-| H1: robust_superpixel - center_color | 0.0632 | [0.0578, 0.0686] | 0.000020 | 0.000060 | True |
-| H2: sam_score_select - sam_single_noisy | 0.0204 | [0.0145, 0.0261] | 0.000020 | 0.000060 | True |
-| H3: point_noise IoU - box_noise IoU | 0.1067 | [0.0996, 0.1138] | 0.000020 | 0.000060 | True |
+| H1: robust_superpixel - center_color | 0.0640 | [0.0585, 0.0696] | 0.000020 | 0.000060 | True |
+| H2: sam_score_select - sam_single_noisy | 0.0193 | [0.0135, 0.0251] | 0.000020 | 0.000060 | True |
+| H3: point_noise IoU - box_noise IoU | 0.1069 | [0.0997, 0.1138] | 0.000020 | 0.000060 | True |
 
 ## Prompt-quality check
 

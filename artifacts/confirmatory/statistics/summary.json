@@ -8,9 +8,9 @@
       "hypothesis": "H1",
       "comparison": "robust_superpixel - center_color",
       "num_pairs": 1449,
-      "mean_delta_iou": 0.06318970600414078,
-      "ci95_low": 0.057812420565907525,
-      "ci95_high": 0.06863941595928226,
+      "mean_delta_iou": 0.0639952187715666,
+      "ci95_low": 0.05849609192546583,
+      "ci95_high": 0.06964272910628018,
       "p_raw": 1.999960000799984e-05,
       "p_holm": 5.9998800023999525e-05,
       "holm_threshold": 0.016666666666666666,
@@ -20,9 +20,9 @@
       "hypothesis": "H2",
       "comparison": "sam_score_select - sam_single_noisy",
       "num_pairs": 1449,
-      "mean_delta_iou": 0.0203627746031746,
-      "ci95_low": 0.014513782981366454,
-      "ci95_high": 0.026142443077984783,
+      "mean_delta_iou": 0.019344296066252587,
+      "ci95_low": 0.013518668008971703,
+      "ci95_high": 0.02509933824706694,
       "p_raw": 1.999960000799984e-05,
       "p_holm": 5.9998800023999525e-05,
       "holm_threshold": 0.025,
@@ -32,9 +32,9 @@
       "hypothesis": "H3",
       "comparison": "point_noise IoU - box_noise IoU",
       "num_pairs": 1449,
-      "mean_delta_iou": 0.10673059213250517,
-      "ci95_low": 0.09956268274327122,
-      "ci95_high": 0.11376960425810902,
+      "mean_delta_iou": 0.10685877073844031,
+      "ci95_low": 0.09973636705659074,
+      "ci95_high": 0.11377182223947549,
       "p_raw": 1.999960000799984e-05,
       "p_holm": 5.9998800023999525e-05,
       "holm_threshold": 0.05,
@@ -50,66 +50,66 @@
       "method": "center_color",
       "num_samples": 1449,
       "num_failures": 0,
-      "mean_iou": 0.5417182753623189,
-      "mean_dice": 0.6768377370600415,
-      "median_latency_ms": 13.4486
+      "mean_iou": 0.540365403036577,
+      "mean_dice": 0.675270674258109,
+      "median_latency_ms": 13.0722
     },
     {
       "method": "grabcut_point_box",
       "num_samples": 1449,
       "num_failures": 8,
-      "mean_iou": 0.6877666894409938,
-      "mean_dice": 0.7781594982746721,
-      "median_latency_ms": 416.8482
+      "mean_iou": 0.6859115017253278,
+      "mean_dice": 0.775126851621808,
+      "median_latency_ms": 416.8176
     },
     {
       "method": "robust_no_color_seed",
       "num_samples": 1449,
       "num_failures": 0,
-      "mean_iou": 0.46451211111111107,
-      "mean_dice": 0.5989231249137336,
-      "median_latency_ms": 189.5788
+      "mean_iou": 0.4633062657004831,
+      "mean_dice": 0.5977253747412008,
+      "median_latency_ms": 187.0017
     },
     {
       "method": "robust_no_spatial_prior",
       "num_samples": 1449,
       "num_failures": 0,
-      "mean_iou": 0.583839536231884,
-      "mean_dice": 0.7162299137336093,
-      "median_latency_ms": 205.0426
+      "mean_iou": 0.5827059365079366,
+      "mean_dice": 0.7151879482401656,
+      "median_latency_ms": 197.5572
     },
     {
       "method": "robust_single_box",
       "num_samples": 1449,
       "num_failures": 0,
-      "mean_iou": 0.6049351090407178,
-      "mean_dice": 0.7351123719806764,
-      "median_latency_ms": 193.3635
+      "mean_iou": 0.6043230193236715,
+      "mean_dice": 0.7344479102829539,
+      "median_latency_ms": 188.5424
     },
     {
       "method": "robust_superpixel",
       "num_samples": 1449,
       "num_failures": 0,
-      "mean_iou": 0.6049079813664596,
-      "mean_dice": 0.7351216107660455,
-      "median_latency_ms": 204.1696
+      "mean_iou": 0.6043606218081435,
+      "mean_dice": 0.7344772491373361,
+      "median_latency_ms": 199.835
     }
   ],
   "sam_modality_summary": [
     {
       "condition": "box_only",
-      "iou": 0.8468839427191167,
-      "dice": 0.9050546273291925
+      "iou": 0.8478543443754313,
+      "dice": 0.9058051449275363
     },
     {
       "condition": "point_box",
-      "iou": 0.8475501711525191,
-      "dice": 0.9076138019323672
+      "iou": 0.8490706618357488,
+      "dice": 0.9086643057280883
     },
     {
       "condition": "point_only",
-      "iou": 0.5346450807453417,
-      "dice": 0.6198252525879917
+      "iou": 0.5388629275362319,
+      "dice": 0.6234773630089717
     }
   ]
 }

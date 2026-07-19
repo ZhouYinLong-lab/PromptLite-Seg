@@ -21,7 +21,7 @@ Full-Validation Evidence from Lightweight Methods and SAM}
 \maketitle
 
 \begin{abstract}
-Promptable segmentation systems are often evaluated with clean points and boxes, although real prompts are uncertain and the two channels do not admit directly comparable perturbation scales. We present a pre-specified evaluation on all 1,449 PASCAL VOC 2012 validation images. A disjoint, class-balanced 100-image subset of VOC train is used only to calibrate point displacement and box perturbation to matched observable quality targets: point hit rate and box IoU. We compare Center Color, GrabCut, a transparent robust-superpixel method, three component ablations, and SAM ViT-B. Three primary hypotheses are tested with paired bootstrap intervals, sign-flip tests, and Holm correction. Robust Superpixel improves over Center Color by 0.0632 IoU (95\% CI [0.0578, 0.0686]); SAM score selection improves over a single noisy prompt by 0.0204 [0.0145, 0.0261]; and matched-quality point-noise IoU exceeds box-noise IoU by 0.1067 [0.0996, 0.1138]. All effects survive Holm correction. Strong baselines and ablations qualify the contribution: GrabCut is stronger than the proposed lightweight method, the color seed and spatial prior are useful, and multi-box consensus has essentially zero average benefit. The result is a reproducible account of prompt-channel failure and evidence strength rather than a state-of-the-art claim.
+Promptable segmentation systems are often evaluated with clean points and boxes, although real prompts are uncertain and the two channels do not admit directly comparable perturbation scales. We present a pre-specified evaluation on all 1,449 PASCAL VOC 2012 validation images. A disjoint, class-balanced 100-image subset of VOC train is used only to calibrate point displacement and box perturbation to matched observable quality targets: point hit rate and box IoU. We compare Center Color, GrabCut, a transparent robust-superpixel method, three component ablations, and SAM ViT-B. Three primary hypotheses are tested with paired bootstrap intervals, sign-flip tests, and Holm correction. Robust Superpixel improves over Center Color by 0.0640 IoU (95\% CI [0.0585, 0.0696]); SAM score selection improves over a single noisy prompt by 0.0193 [0.0135, 0.0251]; and matched-quality point-noise IoU exceeds box-noise IoU by 0.1069 [0.0997, 0.1138]. All effects survive Holm correction. Strong baselines and ablations qualify the contribution: GrabCut is stronger than the proposed lightweight method, the color seed and spatial prior are useful, and multi-box consensus has essentially zero average benefit. The result is a reproducible account of prompt-channel failure and evidence strength rather than a state-of-the-art claim.
 \end{abstract}
 
 \section{Introduction}
@@ -95,17 +95,17 @@ Each paired effect uses a 20,000-replicate bootstrap interval and a 50,000-permu
 \toprule
 Method & IoU & Dice & Median ms & Failures \\
 \midrule
-Center Color & 0.5417 & 0.6768 & 13.4 & 0 \\
-GrabCut point+box & \textbf{0.6878} & \textbf{0.7782} & 416.8 & 8 \\
-Robust Superpixel & 0.6049 & 0.7351 & 204.2 & 0 \\
-\quad no color seed & 0.4645 & 0.5989 & 189.6 & 0 \\
-\quad no spatial prior & 0.5838 & 0.7162 & 205.0 & 0 \\
-\quad single box & 0.6049 & 0.7351 & 193.4 & 0 \\
+Center Color & 0.5404 & 0.6753 & 13.1 & 0 \\
+GrabCut point+box & \textbf{0.6859} & \textbf{0.7751} & 416.8 & 8 \\
+Robust Superpixel & 0.6044 & 0.7345 & 199.8 & 0 \\
+\quad no color seed & 0.4633 & 0.5977 & 187.0 & 0 \\
+\quad no spatial prior & 0.5827 & 0.7152 & 197.6 & 0 \\
+\quad single box & 0.6043 & 0.7344 & 188.5 & 0 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-H1 is supported: Robust Superpixel improves over Center Color by 0.0632 IoU, 95\% CI [0.0578, 0.0686], Holm $p=0.000060$. GrabCut is stronger. Removing the color seed costs 0.1404 IoU and removing the spatial prior costs 0.0211. Removing multi-box consensus changes mean IoU by only $+0.00003$, contradicting the exploratory intuition that box voting was important.
+H1 is supported: Robust Superpixel improves over Center Color by 0.0640 IoU, 95\% CI [0.0585, 0.0696], Holm $p=0.000060$. GrabCut is stronger. Removing the color seed costs 0.1411 IoU and removing the spatial prior costs 0.0217. Removing multi-box consensus changes mean IoU by only $-0.00004$, contradicting the exploratory intuition that box voting was important.
 
 \subsection{SAM modality}
 
@@ -116,14 +116,14 @@ H1 is supported: Robust Superpixel improves over Center Color by 0.0632 IoU, 95\
 \toprule
 Prompt & IoU & Dice \\
 \midrule
-Point only & 0.5346 & 0.6198 \\
-Box only & 0.8469 & 0.9051 \\
-Point+box & \textbf{0.8476} & \textbf{0.9076} \\
+Point only & 0.5389 & 0.6235 \\
+Box only & 0.8479 & 0.9058 \\
+Point+box & \textbf{0.8491} & \textbf{0.9087} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Point+box is only 0.0007 IoU above box-only. The full-validation result refines the exploratory claim: SAM is box-dominated, but box-only is not stronger in aggregate.
+Point+box is only 0.0012 IoU above box-only. The full-validation result refines the exploratory claim: SAM is box-dominated, but box-only is not stronger in aggregate.
 
 \subsection{Primary hypotheses}
 
@@ -134,18 +134,18 @@ Point+box is only 0.0007 IoU above box-only. The full-validation result refines 
 \toprule
 Comparison & Mean $\Delta$ & 95\% CI & Holm $p$ \\
 \midrule
-H1: Robust Superpixel $-$ Center Color & 0.0632 & [0.0578, 0.0686] & 0.000060 \\
-H2: score selection $-$ single noisy & 0.0204 & [0.0145, 0.0261] & 0.000060 \\
-H3: point-noise IoU $-$ box-noise IoU & 0.1067 & [0.0996, 0.1138] & 0.000060 \\
+H1: Robust Superpixel $-$ Center Color & 0.0640 & [0.0585, 0.0696] & 0.000060 \\
+H2: score selection $-$ single noisy & 0.0193 & [0.0135, 0.0251] & 0.000060 \\
+H3: point-noise IoU $-$ box-noise IoU & 0.1069 & [0.0997, 0.1138] & 0.000060 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Moderate point noise yields 0.8184 IoU and matched-quality box noise 0.7117, supporting H3. Under joint noise, a single prompt reaches 0.6521, score selection 0.6725, consistency medoid 0.6766, vote consensus 0.6705, and Oracle 0.7821. H2 is statistically supported but modest. Consistency medoid was not a primary comparison and remains exploratory; Oracle is not deployable.
+Moderate point noise yields 0.8194 IoU and matched-quality box noise 0.7125, supporting H3. Under joint noise, a single prompt reaches 0.6529, score selection 0.6723, consistency medoid 0.6758, vote consensus 0.6710, and Oracle 0.7822. H2 is statistically supported but modest. Consistency medoid was not a primary comparison and remains exploratory; Oracle is not deployable.
 
 \section{Discussion}
 
-Representative evaluation changes the original interpretation. The proposed CPU method is reliably better than its minimal baseline, but not GrabCut; its value lies in transparency and a speed--accuracy operating point. Box localization remains SAM's principal signal, consistent with prior prompting studies \cite{gaus}; our added evidence is that channel sensitivity persists after realized prompt quality is approximately matched. SAM score selection becomes statistically reliable at full scale, although the improvement is only 0.0204 IoU and requires extra decoder calls.
+Representative evaluation changes the original interpretation. The proposed CPU method is reliably better than its minimal baseline, but not GrabCut; its value lies in transparency and a speed--accuracy operating point. Box localization remains SAM's principal signal, consistent with prior prompting studies \cite{gaus}; our added evidence is that channel sensitivity persists after realized prompt quality is approximately matched. SAM score selection becomes statistically reliable at full scale, although the improvement is only 0.0193 IoU and requires extra decoder calls.
 
 Negative results are equally informative. Multi-box consensus adds complexity without aggregate benefit. The strongest CPU method is classical GrabCut. These findings prevent a polished engineering artifact from being presented as a stronger methodological contribution than the evidence supports.
 
