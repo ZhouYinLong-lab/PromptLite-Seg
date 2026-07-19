@@ -147,41 +147,15 @@ def _superpixel_once(
     prompt: Prompt,
     bbox_ratio: float,
     n_segments: int = SLIC_N_SEGMENTS,
+    use_spatial_prior: bool = True,
+    context: tuple[np.ndarray, np.ndarray] | None = None,
 ) -> np.ndarray:
     h, w = image.shape[:2]
     bbox = _expand_bbox(prompt.bbox, (h, w), bbox_ratio)
     x0, y0, x1, y1 = bbox
     box = _box_mask((h, w), bbox)
-    lab = color.rgb2lab(image)
-    segments = segmentation.slic(
-        image,
-        n_segments=n_segments,
-        compactness=SLIC_COMPACTNESS,
-        sigma=SLIC_SIGMA,
-        start_label=0,
-        channel_axis=-1,
-    )
-    num_segments = int(segments.max()) + 1
-
-    # ------------------------------------------------------------------
-    # Vectorised per-segment feature extraction using ndimage.mean.
-    #
-    # Each superpixel is described by a 5-d feature vector:
-    #   [L, a, b,  scaled_x, scaled_y]
-    #
-    # Using ndi.mean over the label map is O(num_segments + h*w) rather
-    # than O(num_segments * h*w) as the original Python loop was.
-    #
-    # Note on np.ogrid vs np.mgrid:
-    #   np.ogrid produces broadcastable 1-D arrays (2 * ~8 KB at 1024px)
-    #   instead of full (h, w) float64 grids (~16 MB at 1024px).
-    # ------------------------------------------------------------------
-    yy, xx = np.ogrid[:h, :w]
-    features = np.zeros((num_segments, 5), dtype=np.float32)
-    for c in range(3):
-        features[:, c] = ndi.mean(lab[:, :, c], labels=segments, index=np.arange(num_segments))
-    features[:, 3] = SPATIAL_SCALE * ndi.mean(xx, labels=segments, index=np.arange(num_segments)) / max(1, w - 1)
-    features[:, 4] = SPATIAL_SCALE * ndi.mean(yy, labels=segments, index=np.arange(num_segments)) / max(1, h - 1)
+    segments, features = context or _superpixel_context(image, n_segments)
+    num_segments = len(features)
 
     radius = max(3, int(SUPERPIXEL_FG_RADIUS_RATIO * min(x1 - x0, y1 - y0)))
     fg_pixels = _disk_mask((h, w), prompt.point, radius) & box
@@ -210,7 +184,8 @@ def _superpixel_once(
     seg_x = features[:, 3] / SPATIAL_SCALE * max(1, w - 1)
     seg_y = features[:, 4] / SPATIAL_SCALE * max(1, h - 1)
     spatial = np.exp(-(((seg_x - cx) / max(1, x1 - x0)) ** 2 + ((seg_y - cy) / max(1, y1 - y0)) ** 2))
-    prob = SPATIAL_WEIGHT * prob + PROB_WEIGHT * spatial
+    if use_spatial_prior:
+        prob = SPATIAL_WEIGHT * prob + PROB_WEIGHT * spatial
 
     # For each segment, check whether most of its pixels fall inside the box.
     seg_inside = ndi.mean(box.astype(np.float32), labels=segments, index=np.arange(num_segments)) > SEG_INSIDE_BOX_RATIO
@@ -220,17 +195,118 @@ def _superpixel_once(
     return seg_pred[segments]
 
 
-def robust_superpixel(image: np.ndarray, prompt: Prompt) -> np.ndarray:
-    """Training-free robust prompt segmentation with superpixel expansion."""
-    color_seed = center_color(image, prompt)
-    votes = [_superpixel_once(image, prompt, bbox_ratio=ratio) for ratio in BBOX_EXPANSION_RATIOS]
+def _superpixel_context(image: np.ndarray, n_segments: int = SLIC_N_SEGMENTS) -> tuple[np.ndarray, np.ndarray]:
+    """Compute image-only SLIC labels/features once for all prompt variants."""
+
+    height, width = image.shape[:2]
+    lab = color.rgb2lab(image)
+    segments = segmentation.slic(
+        image,
+        n_segments=n_segments,
+        compactness=SLIC_COMPACTNESS,
+        sigma=SLIC_SIGMA,
+        start_label=0,
+        channel_axis=-1,
+    )
+    num_segments = int(segments.max()) + 1
+    yy, xx = np.ogrid[:height, :width]
+    features = np.zeros((num_segments, 5), dtype=np.float32)
+    indices = np.arange(num_segments)
+    for channel in range(3):
+        features[:, channel] = ndi.mean(lab[:, :, channel], labels=segments, index=indices)
+    features[:, 3] = SPATIAL_SCALE * ndi.mean(xx, labels=segments, index=indices) / max(1, width - 1)
+    features[:, 4] = SPATIAL_SCALE * ndi.mean(yy, labels=segments, index=indices) / max(1, height - 1)
+    return segments, features
+
+
+def robust_superpixel_variant(
+    image: np.ndarray,
+    prompt: Prompt,
+    *,
+    use_color_seed: bool = True,
+    use_spatial_prior: bool = True,
+    use_box_consensus: bool = True,
+) -> np.ndarray:
+    """Run the proposed method with explicit component switches for ablation."""
+
+    color_seed = center_color(image, prompt) if use_color_seed else np.zeros(image.shape[:2], dtype=bool)
+    ratios = BBOX_EXPANSION_RATIOS if use_box_consensus else (0.0,)
+    context = _superpixel_context(image)
+    votes = [
+        _superpixel_once(
+            image,
+            prompt,
+            bbox_ratio=ratio,
+            use_spatial_prior=use_spatial_prior,
+            context=context,
+        )
+        for ratio in ratios
+    ]
     superpixel_consensus = np.mean(votes, axis=0) >= 0.5
     pred = color_seed | superpixel_consensus
     h, w = image.shape[:2]
     return _clean(pred, prompt.point, min_size=max(ROBUST_MIN_SIZE_ABS, int(ROBUST_MIN_SIZE_RATIO * h * w)))
 
 
+def robust_superpixel(image: np.ndarray, prompt: Prompt) -> np.ndarray:
+    """Training-free robust prompt segmentation with all proposed components."""
+
+    return robust_superpixel_variant(image, prompt)
+
+
+def grabcut_point_box(image: np.ndarray, prompt: Prompt, iterations: int = 5) -> np.ndarray:
+    """Classical GrabCut initialized exclusively from the point and box prompts."""
+
+    import cv2
+
+    height, width = image.shape[:2]
+    x0, y0, x1, y1 = clip_bbox(prompt.bbox, (height, width))
+    grabcut_mask = np.full((height, width), cv2.GC_BGD, dtype=np.uint8)
+    grabcut_mask[y0:y1, x0:x1] = cv2.GC_PR_FGD
+    radius = max(2, int(0.02 * min(x1 - x0, y1 - y0)))
+    grabcut_mask[_disk_mask((height, width), prompt.point, radius)] = cv2.GC_FGD
+    background_model = np.zeros((1, 65), dtype=np.float64)
+    foreground_model = np.zeros((1, 65), dtype=np.float64)
+    cv2.grabCut(
+        image,
+        grabcut_mask,
+        None,
+        background_model,
+        foreground_model,
+        iterations,
+        cv2.GC_INIT_WITH_MASK,
+    )
+    prediction = np.isin(grabcut_mask, (cv2.GC_FGD, cv2.GC_PR_FGD))
+    return _clean(
+        prediction,
+        prompt.point,
+        min_size=max(ROBUST_MIN_SIZE_ABS, int(ROBUST_MIN_SIZE_RATIO * height * width)),
+    )
+
+
+def robust_superpixel_no_color_seed(image: np.ndarray, prompt: Prompt) -> np.ndarray:
+    return robust_superpixel_variant(image, prompt, use_color_seed=False)
+
+
+def robust_superpixel_no_spatial_prior(image: np.ndarray, prompt: Prompt) -> np.ndarray:
+    return robust_superpixel_variant(image, prompt, use_spatial_prior=False)
+
+
+def robust_superpixel_single_box(image: np.ndarray, prompt: Prompt) -> np.ndarray:
+    return robust_superpixel_variant(image, prompt, use_box_consensus=False)
+
+
 METHODS = {
     "center_color": center_color,
     "robust_superpixel": robust_superpixel,
+}
+
+
+CONFIRMATORY_CPU_METHODS = {
+    "center_color": center_color,
+    "grabcut_point_box": grabcut_point_box,
+    "robust_superpixel": robust_superpixel,
+    "robust_no_color_seed": robust_superpixel_no_color_seed,
+    "robust_no_spatial_prior": robust_superpixel_no_spatial_prior,
+    "robust_single_box": robust_superpixel_single_box,
 }

@@ -32,6 +32,25 @@
     "secondary": ["Dice", "latency_ms", "peak_rss_mb"],
     "aggregation": "macro average over target instances with paired sample-level deltas"
   },
+  "methods": {
+    "cpu_baselines": [
+      "center_color",
+      "grabcut_point_box"
+    ],
+    "standard_interactive_baselines": [
+      "sam_vit_b_point_only",
+      "sam_vit_b_box_only",
+      "sam_vit_b_point_box"
+    ],
+    "proposed": "robust_superpixel",
+    "ablations": [
+      "robust_no_color_seed",
+      "robust_no_spatial_prior",
+      "robust_single_box"
+    ],
+    "grabcut_iterations": 5,
+    "sam_model": "vit_b"
+  },
   "primary_hypotheses": [
     {
       "id": "H1",
@@ -72,7 +91,7 @@
     "artifact_sha256": "f794a025d85cd5f6e8ec44dcd0f38638ec06f0d0963becf21c9c785435bd3e8c"
   },
   "frozen_algorithm_sources": {
-    "src/promptseg/algorithms.py": "0077ad1efacf451e6e7f47fd787489c05e4628c933f3c1e5e1be01a7416869dd",
+    "src/promptseg/algorithms.py": "7fbc3fdd26938f88608c89511ffaaf199d1e3cc7b54a3a871997660f6356265f",
     "src/promptseg/utils.py": "fefff391128db133d39b681a5dd929e053e01473b52c82686525e59b5ed1e29a"
   },
   "reporting": {

@@ -78,3 +78,10 @@ artifact that does not redistribute third-party data without permission.
 - Calibrated prompt noise only on the tuning split. Mild point hit rate / box IoU
   are 0.8480 / 0.8538; moderate values are 0.6495 / 0.6509. The resulting scales
   are frozen in `protocol/noise_calibration.json` and runtime constants.
+- Added a five-iteration point+box GrabCut baseline and registered SAM point,
+  box, and point+box modes as standard interactive baselines. Added ablations
+  for the color seed, spatial prior, and multi-box consensus.
+- Added `run_confirmatory_cpu.py`, which emits metrics only and records failures,
+  per-sample latency, total runtime, and sampled peak RSS. SLIC labels/features
+  are now reused across box-consensus members; the refactor reproduces all
+  original 30-sample CPU summary values exactly.
