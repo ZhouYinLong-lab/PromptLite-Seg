@@ -97,9 +97,23 @@
     "src/promptseg/utils.py": "f1524dc374c4922454246435a42c2083ab5213e55e1732092070ad6e5587b7a0",
     "src/promptseg/prompts.py": "42803f89863557a3903bba2a1a7b71286a3aa16910516d5690d7c32e100a169f",
     "src/promptseg/sam.py": "96166ed24fba5b6ea8925dacfdb0ef033bc00dda9711fe8c2e131d250e7d343d",
-    "scripts/run_confirmatory_sam.py": "17c54930d4022ca6b027bec9b0b586cb41f6ce49873a816cb2f7c53b7e97b7bf"
+    "scripts/run_confirmatory_sam.py": "1150cee7e767352c94bcd06f8524913d679b502d6a6d13b127b629ae9751eec8"
   },
   "frozen_source_hash_canonicalization": "SHA-256 over UTF-8 bytes after CRLF-to-LF normalization",
+  "integrity": {
+    "dataset_fingerprints": "protocol/dataset_fingerprints.json",
+    "runtime_sources": "protocol/runtime_sources.json",
+    "accepted_historical_protocol_sha256": [
+      "ca3c382f3847469a50389822cb6a90dce50d0ffaa15ed79211f37470556875e2"
+    ],
+    "accepted_historical_metric_sha256": {
+      "ca3c382f3847469a50389822cb6a90dce50d0ffaa15ed79211f37470556875e2": {
+        "cpu": "a23e275dac33375aba22e6b587ba064ca9da080185e4b48d0fc87c4750424864",
+        "sam": "0c3f79e589ae995e29ad9f4c3358fb6fef08db9c56f1d91143d759487fb6b245"
+      }
+    },
+    "amendment": "Post-audit execution guards only; frozen hypotheses, methods, prompts, calibration, and statistical tests are unchanged."
+  },
   "reporting": {
     "required_strata": ["class_name", "target_area_quartile"],
     "required_failures": "report missing cases, runtime failures, and exclusions; no silent dropping",

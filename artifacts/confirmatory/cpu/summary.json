@@ -42,8 +42,8 @@
       "mean_dice_success_only": 0.7794301235253296,
       "mean_iou_failure_zero": 0.6859115017253278,
       "mean_dice_failure_zero": 0.775126851621808,
-      "median_latency_ms": 421.1899,
-      "p95_latency_ms": 1491.4356,
+      "median_latency_ms": 416.8176,
+      "p95_latency_ms": 1486.6329199999987,
       "total_seconds": 107.15332290000515,
       "peak_rss_mb": 1300.5078125,
       "workers": 8

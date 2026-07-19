@@ -20,6 +20,8 @@ from promptseg.voc import bbox_and_point, decode_image, decode_voc_mask, largest
 
 
 SAMPLE_ID_PATTERN = re.compile(r"(?:train|val)_\d{6}\Z")
+OUTPUT_MARKER = ".promptseg-materialization.json"
+OUTPUT_OWNER = "promptlite-seg.prepare-voc-from-manifest"
 
 
 def load_manifest(path: Path) -> list[dict]:
@@ -33,14 +35,45 @@ def load_manifest(path: Path) -> list[dict]:
 
 
 def safe_output_root(path: Path) -> Path:
-    if path.is_symlink():
-        raise ValueError(f"Output directory must not be a symbolic link: {path}")
+    is_junction = getattr(path, "is_junction", lambda: False)
+    if path.is_symlink() or is_junction():
+        raise ValueError(f"Output directory must not be a symbolic link or junction: {path}")
     resolved = path.resolve()
     repository = ROOT.resolve()
-    forbidden = {Path(resolved.anchor).resolve(), Path.home().resolve(), repository}
-    if resolved in forbidden or repository.is_relative_to(resolved):
+    data_root = (repository / "data").resolve()
+    home = Path.home().resolve()
+    forbidden = {Path(resolved.anchor).resolve(), home, repository}
+    if (
+        resolved in forbidden
+        or repository.is_relative_to(resolved)
+        or home.is_relative_to(resolved)
+        or resolved == data_root
+        or not resolved.is_relative_to(data_root)
+    ):
         raise ValueError(f"Refusing unsafe output directory: {resolved}")
     return resolved
+
+
+def validate_managed_output(output_root: Path) -> None:
+    marker = output_root / OUTPUT_MARKER
+    if marker.is_symlink() or not marker.is_file():
+        raise ValueError(
+            f"Refusing to replace unmanaged directory: {output_root}; "
+            f"expected {OUTPUT_MARKER}"
+        )
+    try:
+        payload = json.loads(marker.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(f"Invalid materialization marker: {marker}") from error
+    if payload != {"owner": OUTPUT_OWNER, "schema_version": 1}:
+        raise ValueError(f"Unrecognized materialization marker: {marker}")
+
+
+def write_output_marker(output_root: Path) -> None:
+    (output_root / OUTPUT_MARKER).write_text(
+        json.dumps({"owner": OUTPUT_OWNER, "schema_version": 1}, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
 
 
 def safe_sample_dir(output_root: Path, sample_id: str) -> Path:
@@ -97,8 +130,10 @@ def main() -> None:
     if output_root.exists():
         if not args.replace:
             raise SystemExit(f"Output already exists: {output_root}; pass --replace to rebuild")
+        validate_managed_output(output_root)
         shutil.rmtree(output_root)
     output_root.mkdir(parents=True)
+    write_output_marker(output_root)
 
     table = read_voc_table(args.parquet, columns=["image", "mask"])
     for index, manifest_row in enumerate(rows, start=1):

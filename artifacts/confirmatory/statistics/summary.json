@@ -3,6 +3,16 @@
   "n_boot": 20000,
   "n_perm": 50000,
   "seed": 20260719,
+  "input_provenance": {
+    "cpu_summary_sha256": "72d7936be1b7f55bb9a9dad0dd0223ca112c5966fb543a7dce6a88f32cf1667b",
+    "sam_summary_sha256": "c4002f4a1b142cf306892976f28164ecc2e4ab44da58c85d7c861ec631833885",
+    "dataset_fingerprints_sha256": "faed9bd7e4201c0de87baca44980ca146cb4b4db242ad9f1f5dadc51bee6f187",
+    "dataset_sha256": "9cc5140ce4283809f668ff87dc3d7efc13b76b693da2f43d7c42a1d7b3f90c9b",
+    "manifest_sha256": "7b89d688548708a7dca6ede27824294c6280710e7078e56b45ab53f70ef1fade",
+    "execution_protocol_sha256": "ca3c382f3847469a50389822cb6a90dce50d0ffaa15ed79211f37470556875e2",
+    "cpu_metrics_sha256": "a23e275dac33375aba22e6b587ba064ca9da080185e4b48d0fc87c4750424864",
+    "sam_metrics_sha256": "0c3f79e589ae995e29ad9f4c3358fb6fef08db9c56f1d91143d759487fb6b245"
+  },
   "primary_hypotheses": [
     {
       "hypothesis": "H1",

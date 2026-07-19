@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import hashlib
+from importlib import metadata
 import json
 from pathlib import Path
+import platform
 import subprocess
+import sys
 
 
 SAMPLE_FILENAMES = ("image.jpg", "target_mask.png", "prompt.txt")
@@ -24,13 +27,91 @@ def canonical_json_sha256(value: object) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
-def git_is_dirty(repository: Path) -> bool:
-    output = subprocess.check_output(
-        ["git", "status", "--porcelain", "--untracked-files=no"],
-        cwd=repository,
-        text=True,
-    )
+def canonical_source_sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+
+
+def git_commit(repository: Path) -> str | None:
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            cwd=repository,
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return None
+
+
+def git_is_dirty(repository: Path) -> bool | None:
+    try:
+        output = subprocess.check_output(
+            ["git", "status", "--porcelain", "--untracked-files=no"],
+            cwd=repository,
+            text=True,
+            stderr=subprocess.DEVNULL,
+        )
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return None
     return bool(output.strip())
+
+
+def verify_runtime_sources(repository: Path, specification: Path) -> dict:
+    payload = json.loads(specification.read_text(encoding="utf-8"))
+    expected = payload.get("files")
+    if payload.get("schema_version") != 1 or not isinstance(expected, dict) or not expected:
+        raise ValueError(f"Invalid runtime source specification: {specification}")
+    observed = {
+        relative: canonical_source_sha256(repository / relative)
+        for relative in sorted(expected)
+    }
+    mismatches = {
+        relative: {"expected": expected[relative], "observed": observed[relative]}
+        for relative in observed
+        if observed[relative] != expected[relative]
+    }
+    return {
+        "matches": not mismatches,
+        "fingerprint": canonical_json_sha256(observed),
+        "specification_sha256": sha256_file(specification),
+        "mismatches": mismatches,
+    }
+
+
+def module_source_fingerprint(module: object) -> str | None:
+    module_file = getattr(module, "__file__", None)
+    if not module_file:
+        return None
+    root = Path(module_file).resolve().parent
+    if not root.is_dir():
+        return None
+    sources = {
+        path.relative_to(root).as_posix(): canonical_source_sha256(path)
+        for path in sorted(root.rglob("*.py"))
+        if path.is_file() and not path.is_symlink()
+    }
+    return canonical_json_sha256(sources) if sources else None
+
+
+def package_versions(distributions: tuple[str, ...]) -> dict[str, str | None]:
+    versions: dict[str, str | None] = {}
+    for distribution in distributions:
+        try:
+            versions[distribution] = metadata.version(distribution)
+        except metadata.PackageNotFoundError:
+            versions[distribution] = None
+    return versions
+
+
+def base_runtime_environment(distributions: tuple[str, ...]) -> dict:
+    return {
+        "python": platform.python_version(),
+        "implementation": platform.python_implementation(),
+        "platform": platform.platform(),
+        "executable_architecture": platform.machine(),
+        "packages": package_versions(distributions),
+        "python_cache_tag": sys.implementation.cache_tag,
+    }
 
 
 def manifest_sample_ids(path: Path) -> list[str]:

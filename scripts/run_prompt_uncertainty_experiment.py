@@ -232,6 +232,8 @@ def main() -> None:
     parser.add_argument("--ensemble-size", type=int, default=5)
     parser.add_argument("--device", default=None)
     args = parser.parse_args()
+    if args.max_samples < 1:
+        parser.error("--max-samples must be at least 1")
 
     import torch
 

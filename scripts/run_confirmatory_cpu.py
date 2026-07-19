@@ -8,7 +8,6 @@ import json
 import os
 from pathlib import Path
 import statistics
-import subprocess
 import sys
 from threading import Event, Thread
 from time import perf_counter
@@ -22,7 +21,15 @@ sys.path.insert(0, str(ROOT / "src"))
 from promptseg.algorithms import CONFIRMATORY_CPU_METHODS
 from promptseg.dataset import load_sample
 from promptseg.metrics import dice, iou
-from promptseg.protocol import dataset_fingerprint, git_is_dirty, manifest_sample_ids, sha256_file
+from promptseg.protocol import (
+    base_runtime_environment,
+    dataset_fingerprint,
+    git_commit,
+    git_is_dirty,
+    manifest_sample_ids,
+    sha256_file,
+    verify_runtime_sources,
+)
 from promptseg.utils import write_csv
 
 
@@ -53,14 +60,6 @@ class PeakRssMonitor:
         self.stop_event.set()
         self.thread.join()
         self.peak_bytes = max(self.peak_bytes, self.process.memory_info().rss)
-
-
-def git_commit() -> str:
-    return subprocess.check_output(
-        ["git", "rev-parse", "HEAD"],
-        cwd=ROOT,
-        text=True,
-    ).strip()
 
 
 def percentile(values: list[float], quantile: float) -> float:
@@ -128,7 +127,7 @@ def run_method(
                 rows = list(executor.map(run_sample_task, tasks, chunksize=4))
     elapsed = perf_counter() - start
     valid = [row for row in rows if row["status"] == "ok"]
-    latencies = [float(row["latency_ms"]) for row in valid]
+    latencies = [float(row["latency_ms"]) for row in rows]
     success_iou = [float(row["iou"]) for row in valid]
     success_dice = [float(row["dice"]) for row in valid]
     summary = {
@@ -162,9 +161,21 @@ def main() -> None:
         type=Path,
         default=Path("protocol/manifests/confirmatory_validation.jsonl"),
     )
+    parser.add_argument(
+        "--dataset-fingerprints",
+        type=Path,
+        default=Path("protocol/dataset_fingerprints.json"),
+    )
+    parser.add_argument(
+        "--runtime-sources",
+        type=Path,
+        default=Path("protocol/runtime_sources.json"),
+    )
     args = parser.parse_args()
     if args.workers < 1:
         parser.error("--workers must be at least 1")
+    if args.max_samples is not None and args.max_samples < 1:
+        parser.error("--max-samples must be at least 1")
 
     protocol = json.loads(args.protocol.read_text(encoding="utf-8"))
     frozen_methods = [
@@ -176,11 +187,14 @@ def main() -> None:
     directories = sample_directories(args.data_dir, args.max_samples)
     observed_ids = [path.name for path in directories]
     expected_ids = manifest_sample_ids(args.manifest)
-    is_confirmatory = (
-        args.max_samples is None
-        and observed_ids == expected_ids
-        and methods == frozen_methods
-        and not git_is_dirty(ROOT)
+    dataset_spec = json.loads(args.dataset_fingerprints.read_text(encoding="utf-8"))
+    expected_dataset_sha256 = dataset_spec["confirmatory"]["dataset_sha256"]
+    initial_dataset_sha256 = dataset_fingerprint(directories)
+    initial_sources = verify_runtime_sources(ROOT, args.runtime_sources)
+    initial_commit = git_commit(ROOT)
+    initial_dirty = git_is_dirty(ROOT)
+    runtime_environment = base_runtime_environment(
+        ("numpy", "Pillow", "scikit-image", "scipy", "opencv-python-headless")
     )
     all_rows: list[dict] = []
     summaries: list[dict] = []
@@ -193,13 +207,39 @@ def main() -> None:
         write_csv(args.output_dir / "summary.csv", summaries)
         print(json.dumps(summary, indent=2))
 
+    final_dataset_sha256 = dataset_fingerprint(directories)
+    final_sources = verify_runtime_sources(ROOT, args.runtime_sources)
+    final_commit = git_commit(ROOT)
+    final_dirty = git_is_dirty(ROOT)
+    if final_dataset_sha256 != initial_dataset_sha256:
+        raise RuntimeError("Dataset changed while the CPU confirmatory run was executing")
+    if final_sources["fingerprint"] != initial_sources["fingerprint"]:
+        raise RuntimeError("Runtime sources changed while the CPU confirmatory run was executing")
+    git_stable = initial_commit == final_commit and final_dirty in (False, None)
+    is_confirmatory = (
+        args.max_samples is None
+        and observed_ids == expected_ids
+        and methods == frozen_methods
+        and initial_dataset_sha256 == expected_dataset_sha256
+        and initial_sources["matches"]
+        and final_sources["matches"]
+        and initial_dirty in (False, None)
+        and git_stable
+    )
     payload = {
-        "git_commit": git_commit(),
-        "git_dirty": git_is_dirty(ROOT),
+        "git_commit": initial_commit,
+        "git_dirty": final_dirty,
         "data_dir": str(args.data_dir),
-        "dataset_sha256": dataset_fingerprint(directories),
+        "dataset_sha256": final_dataset_sha256,
+        "expected_dataset_sha256": expected_dataset_sha256,
+        "dataset_fingerprints_sha256": sha256_file(args.dataset_fingerprints),
         "manifest_sha256": sha256_file(args.manifest),
         "protocol_sha256": sha256_file(args.protocol),
+        "metrics_sha256": sha256_file(args.output_dir / "metrics.csv"),
+        "runtime_sources_sha256": initial_sources["specification_sha256"],
+        "source_tree_sha256": initial_sources["fingerprint"],
+        "source_tree_matches": initial_sources["matches"],
+        "runtime_environment": runtime_environment,
         "confirmatory": is_confirmatory,
         "expected_confirmatory_samples": len(expected_ids),
         "max_samples": args.max_samples,

@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 from pathlib import Path
+import subprocess
+import sys
 import zipfile
 
 from pypdf import PdfWriter
 import pytest
 
 import scripts.export_anonymous_artifact as exporter
-from scripts.export_anonymous_artifact import DEFAULT_BANNED, FORBIDDEN_SUFFIXES, build_archive
+from scripts.export_anonymous_artifact import ALLOWED_SUFFIXES, DEFAULT_BANNED, build_archive
 
 
 def test_anonymous_export_has_no_identity_data_or_git_history(tmp_path: Path) -> None:
@@ -22,7 +24,9 @@ def test_anonymous_export_has_no_identity_data_or_git_history(tmp_path: Path) ->
         assert "reports/report_anonymous.pdf" in names
         assert not any(name.startswith(git_prefix) for name in names)
         assert not any(".egg-info/" in name for name in names)
-        assert not any(Path(name).suffix.lower() in FORBIDDEN_SUFFIXES for name in names)
+        assert "scripts/export_anonymous_artifact.py" not in names
+        assert "tests/test_anonymous_artifact.py" not in names
+        assert not any(Path(name).suffix.lower() not in ALLOWED_SUFFIXES for name in names)
         for name in names:
             if Path(name).suffix.lower() in {".md", ".py", ".toml", ".txt", ".json", ".jsonl", ".csv"}:
                 text = archive.read(name).decode("utf-8").lower()
@@ -40,3 +44,61 @@ def test_pdf_metadata_identity_is_rejected(tmp_path: Path, monkeypatch: pytest.M
 
     with pytest.raises(RuntimeError, match="Identity-bearing"):
         exporter.audit_entry(pdf_path, "anonymous.pdf", DEFAULT_BANNED)
+
+
+def test_pdf_metadata_identity_variants_are_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    pdf_path = tmp_path / "anonymous.pdf"
+    writer = PdfWriter()
+    writer.add_blank_page(width=100, height=100)
+    writer.add_metadata({"/Author": "Yinlong Zhou"})
+    with pdf_path.open("wb") as handle:
+        writer.write(handle)
+    monkeypatch.setattr(exporter, "ROOT", tmp_path)
+
+    with pytest.raises(RuntimeError, match="Identity-bearing"):
+        exporter.audit_entry(pdf_path, "anonymous.pdf", DEFAULT_BANNED)
+
+
+def test_personal_home_path_is_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    text_path = tmp_path / "log.txt"
+    text_path.write_text(r"checkpoint=C:\Users\Alice\models\sam.pth", encoding="utf-8")
+    monkeypatch.setattr(exporter, "ROOT", tmp_path)
+
+    with pytest.raises(RuntimeError, match="Identity-bearing"):
+        exporter.audit_entry(text_path, "log.txt", DEFAULT_BANNED)
+
+
+def test_svg_and_pdf_attachments_are_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(exporter, "ROOT", tmp_path)
+    svg_path = tmp_path / "leak.svg"
+    svg_path.write_text('<svg><image href="data:image/jpeg;base64,AA=="/></svg>', encoding="utf-8")
+    with pytest.raises(RuntimeError, match="not allowed"):
+        exporter.audit_entry(svg_path, "leak.svg", DEFAULT_BANNED)
+
+    pdf_path = tmp_path / "attached.pdf"
+    writer = PdfWriter()
+    writer.add_blank_page(width=100, height=100)
+    writer.add_attachment("voc.jpg", b"image payload")
+    with pdf_path.open("wb") as handle:
+        writer.write(handle)
+    with pytest.raises(RuntimeError, match="attachments are forbidden"):
+        exporter.audit_entry(pdf_path, "attached.pdf", DEFAULT_BANNED)
+
+
+def test_extracted_anonymous_artifact_runs_its_documented_tests(tmp_path: Path) -> None:
+    output = tmp_path / "anonymous.zip"
+    extracted = tmp_path / "extracted"
+    build_archive(output)
+    with zipfile.ZipFile(output) as archive:
+        archive.extractall(extracted)
+
+    result = subprocess.run(
+        [sys.executable, "-m", "pytest", "-q"],
+        cwd=extracted,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=180,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr

@@ -6,7 +6,12 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from scripts.analyze_confirmatory import holm_adjust, load_manifest, validate_metric_design
+from scripts.analyze_confirmatory import (
+    holm_adjust,
+    load_manifest,
+    validate_execution_summaries,
+    validate_metric_design,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -58,3 +63,41 @@ def test_confirmatory_design_types_optional_sam_quality_columns() -> None:
     noisy = validated[validated["experiment"] != "modality"]
     assert noisy["box_iou"].notna().all()
     assert noisy["point_hit"].isin({True, False}).all()
+
+
+def test_analysis_rejects_mismatched_execution_dataset(tmp_path: Path) -> None:
+    sam_summary = json.loads(
+        (ROOT / "artifacts/confirmatory/sam/summary.json").read_text(encoding="utf-8")
+    )
+    sam_summary["dataset_sha256"] = "0" * 64
+    changed_summary = tmp_path / "sam-summary.json"
+    changed_summary.write_text(json.dumps(sam_summary), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="dataset fingerprint"):
+        validate_execution_summaries(
+            ROOT / "artifacts/confirmatory/cpu/summary.json",
+            changed_summary,
+            ROOT / "artifacts/confirmatory/cpu/metrics.csv",
+            ROOT / "artifacts/confirmatory/sam/metrics.csv",
+            ROOT / "protocol/manifests/confirmatory_validation.jsonl",
+            ROOT / "protocol/research_protocol.json",
+            ROOT / "protocol/dataset_fingerprints.json",
+        )
+
+
+def test_analysis_rejects_metrics_not_bound_to_execution_summary(tmp_path: Path) -> None:
+    changed_metrics = tmp_path / "cpu-metrics.csv"
+    changed_metrics.write_bytes(
+        (ROOT / "artifacts/confirmatory/cpu/metrics.csv").read_bytes() + b"\n"
+    )
+
+    with pytest.raises(ValueError, match="CPU metrics"):
+        validate_execution_summaries(
+            ROOT / "artifacts/confirmatory/cpu/summary.json",
+            ROOT / "artifacts/confirmatory/sam/summary.json",
+            changed_metrics,
+            ROOT / "artifacts/confirmatory/sam/metrics.csv",
+            ROOT / "protocol/manifests/confirmatory_validation.jsonl",
+            ROOT / "protocol/research_protocol.json",
+            ROOT / "protocol/dataset_fingerprints.json",
+        )

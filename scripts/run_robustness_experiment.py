@@ -174,6 +174,8 @@ def main() -> None:
     parser.add_argument("--model-type", default="vit_b", choices=["vit_b", "vit_l", "vit_h"])
     parser.add_argument("--device", default=None)
     args = parser.parse_args()
+    if args.max_samples < 1:
+        parser.error("--max-samples must be at least 1")
 
     samples = list(islice(iter_samples(args.data_dir), args.max_samples))
     predictor_and_device = load_sam(args)

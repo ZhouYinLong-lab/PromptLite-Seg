@@ -25,7 +25,13 @@ configuration and resume fingerprint are retained in `sam/run_config.json`.
 
 The raw CPU summary names both the success-only mean and the failure-zero mean
 explicitly; the latter is the confirmatory value used in the paper and
-statistical tables.
+statistical tables. Latency quantiles include every attempted sample, including
+the eight failed GrabCut initializations.
+
+Post-run audit hardening added frozen dataset and runtime-source specifications.
+The retained historical summaries are accepted by the protocol amendment only
+because both execution summaries share the original protocol fingerprint and
+the exact dataset fingerprint; new runs must pass the stronger guards.
 
 ## Reproduction
 

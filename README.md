@@ -28,7 +28,7 @@ PromptLite-Seg 是南京大学 2026 春《人工智能导论》方向 7“零样
 
 ### CPU 方法与消融
 
-| 方法 | Mean IoU | Mean Dice | Median latency | 失败数 |
+| 方法 | Mean IoU | Mean Dice | 全部尝试的 Median latency | 失败数 |
 | --- | ---: | ---: | ---: | ---: |
 | Center Color | 0.5404 | 0.6753 | 13.1 ms | 0 |
 | GrabCut（点 + 框） | **0.6859** | **0.7751** | 416.8 ms | 8/1449 |
@@ -89,7 +89,7 @@ Oracle 多候选结果只作为候选集合的描述性上界，不参与可部�
 - 失败策略：明确记录；算法运行失败按 0 分计入总体指标
 - Oracle 策略：仅作描述性上界
 
-完整机器可读协议见 [`protocol/research_protocol.json`](protocol/research_protocol.json)，数据清单及哈希见 [`protocol/manifests/`](protocol/manifests/)。
+完整机器可读协议见 [`protocol/research_protocol.json`](protocol/research_protocol.json)，数据清单及哈希见 [`protocol/manifests/`](protocol/manifests/)。确认运行还会核对物化数据的整体指纹、运行时代码清单和运行前后 Git 状态；任一项漂移都会使结果失去 confirmatory 标记。
 
 ## 从干净环境复现
 
@@ -109,7 +109,7 @@ python -m pytest
 
 ### 2. 下载并验证数据源
 
-下载脚本会拒绝任何与冻结 SHA-256 不一致的数据文件。
+下载脚本会拒绝任何与冻结 SHA-256 不一致的数据文件。物化器只允许写入仓库的 `data/` 子目录；`--replace` 还要求目标目录带有本项目创建的所有权标记，避免误删任意路径。
 
 ```bash
 python scripts/fetch_protocol_assets.py
@@ -144,6 +144,8 @@ python scripts/analyze_confirmatory.py
 其他 CUDA 或 CPU 平台请先按照 [PyTorch 官方安装器](https://pytorch.org/get-started/locally/) 选择兼容 wheel，再运行 `python -m pip install -r requirements-sam.txt`。不要安装 PyPI 上来源不明确的同名包。
 
 本次验证环境为 Python 3.10、PyTorch 2.11.0+cu128、RTX 5070 Ti；在保留源 JPEG 字节的数据物化修复后，完整 SAM 运行耗时 744 秒，峰值 CUDA allocated memory 约 2.77 GB。不同硬件的耗时与显存可能不同，但指标应由相同清单、提示和检查点确定。
+
+依赖扫描对该 PyTorch 版本报告一项低危 `torch.jit.script` 相关告警。本项目的执行路径不调用 TorchScript/JIT，也只接受固定 SHA-256 的官方 SAM 权重；为了不在确认性结果后改变 CUDA 运行栈，当前复现环境保持冻结。部署到接收不可信模型或启用 JIT 的环境时，应改用 PyTorch 已修复版本并重新验证结果。
 
 ## 项目结构
 

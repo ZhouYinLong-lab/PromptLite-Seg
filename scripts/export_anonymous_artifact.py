@@ -12,11 +12,31 @@ from pypdf import PdfReader
 
 
 ROOT = Path(__file__).resolve().parents[1]
-FORBIDDEN_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".pth", ".pt"}
+ALLOWED_SUFFIXES = {
+    "",
+    ".csv",
+    ".json",
+    ".jsonl",
+    ".md",
+    ".pdf",
+    ".ps1",
+    ".py",
+    ".sha256",
+    ".toml",
+    ".txt",
+}
 EMAIL_PATTERN = re.compile(r"(?<![\w.+-])[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}(?![\w.-])")
-LOCAL_PATH_PATTERNS = (re.compile(r"[a-z]:\\users\\", re.IGNORECASE), re.compile(r"/home/[^/\s]+/"))
+LOCAL_PATH_PATTERNS = (
+    re.compile(r"(?<![\w/])[a-z]:\\Users\\[^\s\\]+\\", re.IGNORECASE),
+    re.compile(r"\\\\[^\s\\]+\\[^\s\\]+\\"),
+    re.compile(r"/(?:home|Users)/[^/\s]+/", re.IGNORECASE),
+)
 DEFAULT_BANNED = (
     "zhouyinlong",
+    "zhou yinlong",
+    "zhou yin-long",
+    "yinlong zhou",
+    "yin-long zhou",
     "github.com/zhouyinlong-lab",
     "nanjing university",
     "南京大学",
@@ -31,10 +51,11 @@ def source_files() -> list[tuple[Path, str]]:
     )
     tracked = sorted(item.decode("utf-8") for item in tracked_output.split(b"\0") if item)
     prefixes = ("src/promptseg/", "scripts/", "protocol/", "artifacts/confirmatory/", "tests/")
+    excluded = {"scripts/export_anonymous_artifact.py", "tests/test_anonymous_artifact.py"}
     selected = [
         name
         for name in tracked
-        if name.startswith(prefixes) and name != "scripts/export_anonymous_artifact.py"
+        if name.startswith(prefixes) and name not in excluded
     ]
     fixed = (
         "LICENSE",
@@ -73,12 +94,8 @@ def pdf_text_and_metadata(path: Path) -> str:
         for attribute in ("dc_creator", "dc_title", "dc_subject", "pdf_keywords", "xmp_creator_tool"):
             parts.append(str(getattr(xmp, attribute, "")))
     attachments = getattr(reader, "attachments", {})
-    for name, payloads in attachments.items():
-        parts.append(str(name))
-        if isinstance(payloads, bytes):
-            payloads = [payloads]
-        for payload in payloads:
-            parts.append(payload.decode("utf-8", errors="ignore"))
+    if attachments:
+        raise RuntimeError(f"PDF attachments are forbidden in anonymous artifacts: {path.name}")
     return "\n".join(parts)
 
 
@@ -87,8 +104,9 @@ def audit_entry(path: Path, archive_name: str, banned: tuple[str, ...]) -> None:
     if path.is_symlink() or not path.resolve().is_relative_to(root):
         raise RuntimeError(f"Anonymous artifact path is a symlink or escapes the repository: {archive_name}")
     lowered_name = archive_name.lower()
-    if Path(archive_name).suffix.lower() in FORBIDDEN_SUFFIXES:
-        raise RuntimeError(f"Forbidden binary asset in anonymous artifact: {archive_name}")
+    suffix = Path(archive_name).suffix.lower()
+    if suffix not in ALLOWED_SUFFIXES:
+        raise RuntimeError(f"File type is not allowed in anonymous artifact: {archive_name}")
     if any(token in lowered_name for token in banned):
         raise RuntimeError(f"Identity-bearing archive path: {archive_name}")
     text = pdf_text_and_metadata(path) if path.suffix.lower() == ".pdf" else path.read_text(
@@ -117,8 +135,8 @@ def build_archive(output: Path, banned: tuple[str, ...] = DEFAULT_BANNED) -> Non
         names = archive.namelist()
         if len(names) != len(set(names)):
             raise RuntimeError("Anonymous artifact contains duplicate paths")
-        if any(Path(name).suffix.lower() in FORBIDDEN_SUFFIXES for name in names):
-            raise RuntimeError("Anonymous artifact contains forbidden binary assets")
+        if any(Path(name).suffix.lower() not in ALLOWED_SUFFIXES for name in names):
+            raise RuntimeError("Anonymous artifact contains a file type outside the allowlist")
     print(f"Built {output} with {len(entries)} audited files")
 
 

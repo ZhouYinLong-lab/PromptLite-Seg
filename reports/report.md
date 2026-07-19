@@ -105,7 +105,7 @@ Each effect uses a paired 95% bootstrap interval with 20,000 replicates and a pa
 
 ### 5.1 CPU methods and ablations
 
-| Method | Mean IoU | Mean Dice | Median latency | Failures |
+| Method | Mean IoU | Mean Dice | Median latency (all attempts) | Failures |
 | --- | ---: | ---: | ---: | ---: |
 | Center Color | 0.5404 | 0.6753 | 13.1 ms | 0 |
 | GrabCut point+box | **0.6859** | **0.7751** | 416.8 ms | 8 |

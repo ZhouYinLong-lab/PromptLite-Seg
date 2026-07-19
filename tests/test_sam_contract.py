@@ -140,18 +140,32 @@ def test_confirmatory_checkpoint_rejects_stale_or_incomplete_rows() -> None:
     with pytest.raises(RuntimeError, match="Legacy or malformed"):
         validate_checkpoint_payload([], sample_id="val_000000", run_fingerprint="run-a", trials=1)
 
-    rows = [
-        {
-            "sample_id": "val_000000",
-            "experiment": experiment,
-            "condition": condition,
-            "method": method,
-            "trial": trial,
-        }
-        for experiment, condition, method, trial in expected_sample_keys(1)
-    ]
+    rows = []
+    for experiment, condition, method, trial in expected_sample_keys(1):
+        noisy = experiment != "modality"
+        rows.append(
+            {
+                "sample_id": "val_000000",
+                "class_name": "aeroplane",
+                "experiment": experiment,
+                "severity": "moderate" if noisy else "clean",
+                "condition": condition,
+                "method": method,
+                "trial": trial,
+                "iou": "0.500000",
+                "dice": "0.666667",
+                "sam_score": "0.750000",
+                "point_hit": "true" if noisy else "",
+                "box_iou": "0.650000" if noisy else "",
+            }
+        )
     payload = {"run_fingerprint": "run-a", "sample_id": "val_000000", "rows": rows[:-1]}
     with pytest.raises(RuntimeError, match="incomplete or duplicated"):
+        validate_checkpoint_payload(payload, sample_id="val_000000", run_fingerprint="run-a", trials=1)
+
+    payload["rows"] = rows
+    payload["rows"][0]["iou"] = "nan"
+    with pytest.raises(RuntimeError, match="out-of-range iou"):
         validate_checkpoint_payload(payload, sample_id="val_000000", run_fingerprint="run-a", trials=1)
 
 
@@ -190,6 +204,9 @@ class FakeCliPredictor:
 
 def install_fake_sam_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
     torch_module = ModuleType("torch")
+    torch_module.__version__ = "test-only"
+    torch_module.version = SimpleNamespace(cuda=None)
+    torch_module.backends = SimpleNamespace(cudnn=SimpleNamespace(version=lambda: None))
     torch_module.cuda = SimpleNamespace(
         is_available=lambda: True,
         reset_peak_memory_stats=lambda: None,

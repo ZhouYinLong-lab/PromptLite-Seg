@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "materialization": "exact source image bytes plus generated target_mask.png and prompt.txt",
+  "tuning": {
+    "samples": 100,
+    "dataset_sha256": "e01967493fcc072fb38f38b598921c8faede4b0f7d02cf2f98629266371c36e5"
+  },
+  "confirmatory": {
+    "samples": 1449,
+    "dataset_sha256": "9cc5140ce4283809f668ff87dc3d7efc13b76b693da2f43d7c42a1d7b3f90c9b"
+  }
+}

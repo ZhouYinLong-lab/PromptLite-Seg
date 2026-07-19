@@ -37,6 +37,25 @@ def test_analysis_scripts_start(script: str) -> None:
     assert "usage:" in result.stdout.lower()
 
 
+@pytest.mark.parametrize(
+    "script",
+    [
+        "scripts/run_experiment.py",
+        "scripts/run_sam_experiment.py",
+        "scripts/run_robustness_experiment.py",
+        "scripts/run_prompt_uncertainty_experiment.py",
+        "scripts/run_confirmatory_cpu.py",
+        "scripts/run_confirmatory_sam.py",
+    ],
+)
+def test_experiment_scripts_reject_nonpositive_sample_limits(script: str) -> None:
+    result = run_script(script, "--max-samples", "-1")
+
+    assert result.returncode == 2
+    assert "--max-samples must be at least 1" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
 def test_one_sample_cpu_experiment(synthetic_data_dir: Path, tmp_path: Path) -> None:
     output_dir = tmp_path / "cpu-output"
     result = run_script(

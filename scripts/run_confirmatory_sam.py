@@ -6,7 +6,6 @@ import argparse
 import json
 from pathlib import Path
 import statistics
-import subprocess
 import sys
 from time import perf_counter
 
@@ -28,11 +27,15 @@ from promptseg.prompts import (
 from promptseg.sam import PROMPT_MODES, predict_sam
 from promptseg.protocol import (
     atomic_write_text,
+    base_runtime_environment,
     canonical_json_sha256,
     dataset_fingerprint,
+    git_commit,
     git_is_dirty,
     manifest_sample_ids,
+    module_source_fingerprint,
     sha256_file,
+    verify_runtime_sources,
 )
 from promptseg.utils import write_csv
 
@@ -45,10 +48,6 @@ ENSEMBLE_METHODS = (
     "sam_vote_consensus",
     "sam_oracle_best",
 )
-
-
-def git_commit() -> str:
-    return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
 
 
 def metric_row(sample, experiment: str, condition: str, method: str, trial: int, pred, score: float, **extra) -> dict:
@@ -176,12 +175,40 @@ def validate_checkpoint_payload(
     for row in rows:
         if not isinstance(row, dict) or row.get("sample_id") != sample_id:
             raise RuntimeError(f"Checkpoint contains misaligned rows for {sample_id}")
+        if not isinstance(row.get("class_name"), str) or not row["class_name"]:
+            raise RuntimeError(f"Checkpoint contains an invalid class label for {sample_id}")
+        trial_value = row.get("trial")
+        if type(trial_value) is not int:
+            raise RuntimeError(f"Checkpoint contains a non-integer trial for {sample_id}")
+        experiment = str(row.get("experiment"))
+        expected_severity = "clean" if experiment == "modality" else "moderate"
+        if row.get("severity") != expected_severity:
+            raise RuntimeError(f"Checkpoint contains an invalid severity for {sample_id}")
+        for metric in ("iou", "dice", "sam_score"):
+            try:
+                value = float(row[metric])
+            except (KeyError, TypeError, ValueError) as error:
+                raise RuntimeError(f"Checkpoint contains invalid {metric} for {sample_id}") from error
+            if not np.isfinite(value) or (metric in {"iou", "dice"} and not 0.0 <= value <= 1.0):
+                raise RuntimeError(f"Checkpoint contains out-of-range {metric} for {sample_id}")
+        if experiment == "modality":
+            if row.get("point_hit", "") != "" or row.get("box_iou", "") != "":
+                raise RuntimeError(f"Checkpoint modality rows contain noisy-prompt quality for {sample_id}")
+        else:
+            if str(row.get("point_hit")).lower() not in {"true", "false"}:
+                raise RuntimeError(f"Checkpoint contains invalid point_hit for {sample_id}")
+            try:
+                box_iou_value = float(row["box_iou"])
+            except (KeyError, TypeError, ValueError) as error:
+                raise RuntimeError(f"Checkpoint contains invalid box_iou for {sample_id}") from error
+            if not np.isfinite(box_iou_value) or not 0.0 <= box_iou_value <= 1.0:
+                raise RuntimeError(f"Checkpoint contains out-of-range box_iou for {sample_id}")
         observed_keys.append(
             (
-                str(row.get("experiment")),
+                experiment,
                 str(row.get("condition")),
                 str(row.get("method")),
-                int(row.get("trial")),
+                trial_value,
             )
         )
     expected = expected_sample_keys(trials)
@@ -206,11 +233,24 @@ def main() -> None:
         type=Path,
         default=Path("protocol/manifests/confirmatory_validation.jsonl"),
     )
+    parser.add_argument(
+        "--dataset-fingerprints",
+        type=Path,
+        default=Path("protocol/dataset_fingerprints.json"),
+    )
+    parser.add_argument(
+        "--runtime-sources",
+        type=Path,
+        default=Path("protocol/runtime_sources.json"),
+    )
     args = parser.parse_args()
     if args.trials < 1 or args.ensemble_size < 1:
         parser.error("--trials and --ensemble-size must be at least 1")
+    if args.max_samples is not None and args.max_samples < 1:
+        parser.error("--max-samples must be at least 1")
 
     import torch
+    import segment_anything
     from segment_anything import SamPredictor, sam_model_registry
 
     observed_checkpoint_sha256 = sha256_file(args.checkpoint)
@@ -236,13 +276,39 @@ def main() -> None:
     protocol = json.loads(args.protocol.read_text(encoding="utf-8"))
     expected_ids = manifest_sample_ids(args.manifest)
     observed_ids = [path.name for path in sample_dirs]
+    dataset_spec = json.loads(args.dataset_fingerprints.read_text(encoding="utf-8"))
+    expected_dataset_sha256 = dataset_spec["confirmatory"]["dataset_sha256"]
+    initial_sources = verify_runtime_sources(ROOT, args.runtime_sources)
+    initial_commit = git_commit(ROOT)
+    initial_dirty = git_is_dirty(ROOT)
+    runtime_environment = base_runtime_environment(("numpy", "Pillow", "torch", "torchvision"))
+    runtime_environment["torch"] = {
+        "version": getattr(torch, "__version__", None),
+        "cuda_runtime": getattr(getattr(torch, "version", None), "cuda", None),
+        "cudnn": (
+            getattr(getattr(getattr(torch, "backends", None), "cudnn", None), "version", lambda: None)()
+        ),
+    }
+    if args.device.startswith("cuda"):
+        runtime_environment["torch"]["device_name"] = getattr(
+            torch.cuda, "get_device_name", lambda *_args: None
+        )(args.device)
+        get_device_capability = getattr(torch.cuda, "get_device_capability", lambda *_args: ())
+        runtime_environment["torch"]["device_capability"] = list(get_device_capability(args.device))
+    runtime_environment["segment_anything_source_sha256"] = module_source_fingerprint(segment_anything)
     run_config = {
-        "schema_version": 1,
-        "git_commit": git_commit(),
-        "git_dirty": git_is_dirty(ROOT),
+        "schema_version": 2,
+        "git_commit": initial_commit,
+        "git_dirty": initial_dirty,
         "protocol_sha256": sha256_file(args.protocol),
         "manifest_sha256": sha256_file(args.manifest),
         "dataset_sha256": dataset_fingerprint(sample_dirs),
+        "expected_dataset_sha256": expected_dataset_sha256,
+        "dataset_fingerprints_sha256": sha256_file(args.dataset_fingerprints),
+        "runtime_sources_sha256": initial_sources["specification_sha256"],
+        "source_tree_sha256": initial_sources["fingerprint"],
+        "source_tree_matches": initial_sources["matches"],
+        "runtime_environment": runtime_environment,
         "checkpoint_sha256": observed_checkpoint_sha256,
         "model_type": args.model_type,
         "device": args.device,
@@ -311,24 +377,40 @@ def main() -> None:
                 trials=args.trials,
             )
         )
-    write_csv(args.output_dir / "metrics.csv", rows)
-
     process = psutil.Process()
+    final_dataset_sha256 = dataset_fingerprint(sample_dirs)
+    final_sources = verify_runtime_sources(ROOT, args.runtime_sources)
+    final_commit = git_commit(ROOT)
+    final_dirty = git_is_dirty(ROOT)
+    if final_dataset_sha256 != run_config["dataset_sha256"]:
+        raise RuntimeError("Dataset changed while the SAM confirmatory run was executing")
+    if final_sources["fingerprint"] != initial_sources["fingerprint"]:
+        raise RuntimeError("Runtime sources changed while the SAM confirmatory run was executing")
+    if not final_sources["matches"]:
+        raise RuntimeError("Runtime sources no longer match the frozen source specification")
+    git_stable = initial_commit == final_commit and final_dirty in (False, None)
+    write_csv(args.output_dir / "metrics.csv", rows)
     frozen_trials = int(protocol["methods"]["sam_confirmatory_trials_per_sample"])
     frozen_ensemble_size = int(protocol["methods"]["sam_ensemble_additional_candidates"])
     payload = {
-        "git_commit": git_commit(),
+        "git_commit": initial_commit,
+        "git_dirty": final_dirty,
         "run_fingerprint": run_fingerprint,
         "protocol_sha256": run_config["protocol_sha256"],
         "manifest_sha256": run_config["manifest_sha256"],
         "dataset_sha256": run_config["dataset_sha256"],
+        "metrics_sha256": sha256_file(args.output_dir / "metrics.csv"),
         "confirmatory": (
             args.max_samples is None
             and observed_ids == expected_ids
             and args.trials == frozen_trials
             and args.ensemble_size == frozen_ensemble_size
             and args.model_type == protocol["methods"]["sam_model"]
-            and not run_config["git_dirty"]
+            and final_dataset_sha256 == expected_dataset_sha256
+            and initial_sources["matches"]
+            and final_sources["matches"]
+            and initial_dirty in (False, None)
+            and git_stable
         ),
         "num_samples": len(sample_dirs),
         "num_rows": len(rows),

@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from promptseg.utils import SEVERITIES
+from promptseg.protocol import verify_runtime_sources
 from scripts.fetch_protocol_assets import fetch_and_verify
 
 
@@ -55,6 +56,19 @@ def test_runtime_noise_scales_match_tuning_calibration() -> None:
         assert SEVERITIES[severity]["box"] == calibration["results"][severity]["box"]["scale"]
         assert calibration["results"][severity]["point"]["absolute_error"] < 0.005
         assert calibration["results"][severity]["box"]["absolute_error"] < 0.005
+
+
+def test_runtime_source_and_dataset_fingerprint_specs_are_frozen() -> None:
+    source_check = verify_runtime_sources(ROOT, ROOT / "protocol/runtime_sources.json")
+    dataset_spec = json.loads((ROOT / "protocol/dataset_fingerprints.json").read_text(encoding="utf-8"))
+
+    assert source_check["matches"] is True
+    assert source_check["mismatches"] == {}
+    assert dataset_spec["schema_version"] == 1
+    assert dataset_spec["tuning"]["samples"] == 100
+    assert dataset_spec["confirmatory"]["samples"] == 1449
+    assert len(dataset_spec["tuning"]["dataset_sha256"]) == 64
+    assert len(dataset_spec["confirmatory"]["dataset_sha256"]) == 64
 
 
 def test_tuning_and_confirmatory_manifests_are_disjoint_and_representative() -> None:

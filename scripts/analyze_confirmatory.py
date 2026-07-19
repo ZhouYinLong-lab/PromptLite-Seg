@@ -13,6 +13,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from promptseg.protocol import sha256_file
 from promptseg.utils import write_csv
 
 
@@ -111,6 +112,70 @@ def _require_columns(frame: pd.DataFrame, required: set[str], label: str) -> Non
         raise ValueError(f"{label} metrics are missing columns: {missing}")
 
 
+def validate_execution_summaries(
+    cpu_summary_path: Path,
+    sam_summary_path: Path,
+    cpu_metrics_path: Path,
+    sam_metrics_path: Path,
+    manifest_path: Path,
+    protocol_path: Path,
+    dataset_fingerprints_path: Path,
+) -> dict:
+    cpu_summary = json.loads(cpu_summary_path.read_text(encoding="utf-8"))
+    sam_summary = json.loads(sam_summary_path.read_text(encoding="utf-8"))
+    protocol = json.loads(protocol_path.read_text(encoding="utf-8"))
+    dataset_spec = json.loads(dataset_fingerprints_path.read_text(encoding="utf-8"))
+    expected_dataset = dataset_spec["confirmatory"]
+    expected_dataset_sha256 = expected_dataset["dataset_sha256"]
+    expected_samples = int(expected_dataset["samples"])
+
+    for label, summary in (("CPU", cpu_summary), ("SAM", sam_summary)):
+        if summary.get("confirmatory") is not True:
+            raise ValueError(f"{label} summary is not marked as a confirmatory run")
+        if summary.get("dataset_sha256") != expected_dataset_sha256:
+            raise ValueError(f"{label} dataset fingerprint does not match the frozen confirmatory data")
+    if cpu_summary.get("expected_confirmatory_samples") != expected_samples:
+        raise ValueError("CPU summary sample count does not match the frozen dataset specification")
+    if sam_summary.get("num_samples") != expected_samples:
+        raise ValueError("SAM summary sample count does not match the frozen dataset specification")
+    manifest_sha256 = sha256_file(manifest_path)
+    if {cpu_summary.get("manifest_sha256"), sam_summary.get("manifest_sha256")} != {manifest_sha256}:
+        raise ValueError("CPU and SAM summaries are not bound to the selected frozen manifest")
+
+    current_protocol_sha256 = sha256_file(protocol_path)
+    accepted_protocols = {
+        current_protocol_sha256,
+        *protocol.get("integrity", {}).get("accepted_historical_protocol_sha256", []),
+    }
+    summary_protocols = {cpu_summary.get("protocol_sha256"), sam_summary.get("protocol_sha256")}
+    if len(summary_protocols) != 1 or not summary_protocols <= accepted_protocols:
+        raise ValueError("CPU and SAM summaries do not share an accepted protocol fingerprint")
+    execution_protocol_sha256 = next(iter(summary_protocols))
+    historical_metrics = protocol.get("integrity", {}).get(
+        "accepted_historical_metric_sha256", {}
+    ).get(execution_protocol_sha256, {})
+    metric_bindings = (
+        ("CPU", cpu_summary, cpu_metrics_path, historical_metrics.get("cpu")),
+        ("SAM", sam_summary, sam_metrics_path, historical_metrics.get("sam")),
+    )
+    for label, summary, metrics_path, historical_hash in metric_bindings:
+        if execution_protocol_sha256 == current_protocol_sha256 and summary.get(
+            "source_tree_matches"
+        ) is not True:
+            raise ValueError(f"{label} runtime source tree is not verified")
+        expected_metrics_sha256 = summary.get("metrics_sha256") or historical_hash
+        if expected_metrics_sha256 != sha256_file(metrics_path):
+            raise ValueError(f"{label} metrics do not match their execution summary")
+    return {
+        "cpu_summary_sha256": sha256_file(cpu_summary_path),
+        "sam_summary_sha256": sha256_file(sam_summary_path),
+        "dataset_fingerprints_sha256": sha256_file(dataset_fingerprints_path),
+        "dataset_sha256": expected_dataset_sha256,
+        "manifest_sha256": manifest_sha256,
+        "execution_protocol_sha256": execution_protocol_sha256,
+    }
+
+
 def validate_metric_design(
     cpu: pd.DataFrame,
     sam: pd.DataFrame,
@@ -144,6 +209,10 @@ def validate_metric_design(
         raise ValueError("CPU metrics do not contain exactly one row per frozen sample and method")
     if set(cpu["status"].astype(str)) - {"ok", "error"}:
         raise ValueError("CPU metrics contain an unknown status")
+    if (cpu.loc[cpu["status"] == "ok", "error"].astype(str) != "").any():
+        raise ValueError("CPU successful rows unexpectedly contain an error message")
+    if (cpu.loc[cpu["status"] == "error", "error"].astype(str) == "").any():
+        raise ValueError("CPU failed rows must contain an explicit error message")
     for metric in ("iou", "dice", "latency_ms"):
         numeric = pd.to_numeric(cpu[metric], errors="coerce")
         if numeric[cpu["status"] == "ok"].isna().any():
@@ -151,6 +220,8 @@ def validate_metric_design(
         if metric in {"iou", "dice"} and numeric[cpu["status"] == "error"].notna().any():
             raise ValueError(f"CPU failed rows unexpectedly contain numeric {metric}")
         cpu[metric] = numeric.fillna(0.0)
+    if (cpu["latency_ms"] < 0.0).any():
+        raise ValueError("CPU metrics contain negative latency")
 
     trials = int(protocol["methods"]["sam_confirmatory_trials_per_sample"])
     expected_sam: set[tuple[str, str, str, str, str, int]] = set()
@@ -195,6 +266,8 @@ def validate_metric_design(
     if box_iou[noisy].isna().any() or box_iou[~noisy].notna().any():
         raise ValueError("SAM box_iou must be numeric for noisy rows and blank for modality rows")
     sam["box_iou"] = box_iou
+    if not sam.loc[noisy, "box_iou"].between(0.0, 1.0, inclusive="both").all():
+        raise ValueError("SAM metrics contain out-of-range box_iou")
     point_hit_text = sam["point_hit"].astype(str).str.lower()
     if not point_hit_text[noisy].isin({"true", "false"}).all() or (point_hit_text[~noisy] != "").any():
         raise ValueError("SAM point_hit must be boolean for noisy rows and blank for modality rows")
@@ -221,10 +294,28 @@ def main() -> None:
     parser.add_argument("--n-perm", type=int, default=50000)
     parser.add_argument("--seed", type=int, default=20260719)
     parser.add_argument("--protocol", type=Path, default=Path("protocol/research_protocol.json"))
+    parser.add_argument("--cpu-summary", type=Path, default=None)
+    parser.add_argument("--sam-summary", type=Path, default=None)
+    parser.add_argument(
+        "--dataset-fingerprints",
+        type=Path,
+        default=Path("protocol/dataset_fingerprints.json"),
+    )
     args = parser.parse_args()
     if args.n_boot < 1 or args.n_perm < 1:
         parser.error("--n-boot and --n-perm must be at least 1")
 
+    cpu_summary_path = args.cpu_summary or args.cpu_metrics.parent / "summary.json"
+    sam_summary_path = args.sam_summary or args.sam_metrics.parent / "summary.json"
+    execution_provenance = validate_execution_summaries(
+        cpu_summary_path,
+        sam_summary_path,
+        args.cpu_metrics,
+        args.sam_metrics,
+        args.manifest,
+        args.protocol,
+        args.dataset_fingerprints,
+    )
     cpu = pd.read_csv(args.cpu_metrics, keep_default_na=False)
     sam = pd.read_csv(args.sam_metrics, keep_default_na=False)
     manifest = load_manifest(args.manifest)
@@ -323,6 +414,11 @@ def main() -> None:
         "n_boot": args.n_boot,
         "n_perm": args.n_perm,
         "seed": args.seed,
+        "input_provenance": {
+            **execution_provenance,
+            "cpu_metrics_sha256": sha256_file(args.cpu_metrics),
+            "sam_metrics_sha256": sha256_file(args.sam_metrics),
+        },
         "primary_hypotheses": rows,
         "prompt_quality": quality,
         "cpu_summary": cpu_summary,

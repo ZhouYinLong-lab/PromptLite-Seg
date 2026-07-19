@@ -26,6 +26,8 @@ def main() -> None:
     parser.add_argument("--output-dir", type=Path, default=Path("outputs"))
     parser.add_argument("--max-samples", type=int, default=None)
     args = parser.parse_args()
+    if args.max_samples is not None and args.max_samples < 1:
+        parser.error("--max-samples must be at least 1")
 
     sample_iterator = iter_samples(args.data_dir)
     samples = list(islice(sample_iterator, args.max_samples)) if args.max_samples is not None else list(sample_iterator)

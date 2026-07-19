@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "hash": "SHA-256 over file bytes after CRLF-to-LF normalization",
+  "files": {
+    "protocol/dataset_fingerprints.json": "faed9bd7e4201c0de87baca44980ca146cb4b4db242ad9f1f5dadc51bee6f187",
+    "protocol/research_protocol.json": "0e7a5b131f18eb829a49596f915a7c857050d82d3d7a99840264385e61f9f1d4",
+    "src/promptseg/algorithms.py": "ecca27bd3487d3ae02f06d309f32de9e2d99a6d586cef8bc8221ab9500852e17",
+    "src/promptseg/dataset.py": "7dfd1bd359dd027d85919b7b83bcaf9355a1ab719b27401c24f4747390a413b9",
+    "src/promptseg/metrics.py": "8b0c20aaa08d95fe373810a7957875fc623779c43fb79e301da74dc44216a3f9",
+    "src/promptseg/prompts.py": "42803f89863557a3903bba2a1a7b71286a3aa16910516d5690d7c32e100a169f",
+    "src/promptseg/protocol.py": "f7eb385244922d524390d16f2a349d48fb583fd8d3e39230444ad803c3cbf55b",
+    "src/promptseg/sam.py": "96166ed24fba5b6ea8925dacfdb0ef033bc00dda9711fe8c2e131d250e7d343d",
+    "src/promptseg/utils.py": "f1524dc374c4922454246435a42c2083ab5213e55e1732092070ad6e5587b7a0",
+    "scripts/run_confirmatory_cpu.py": "907b54eeddf9a0f08396e8603972ca1925d2c331f3caf0f3a5ae525664169647",
+    "scripts/run_confirmatory_sam.py": "1150cee7e767352c94bcd06f8524913d679b502d6a6d13b127b629ae9751eec8",
+    "scripts/analyze_confirmatory.py": "8e408827a4b203ad9360af8900a9f6591445a80b25db1a1403a5e366c016faf4"
+  }
+}
