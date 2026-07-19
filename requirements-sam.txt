@@ -1,6 +1,4 @@
 # Install CUDA PyTorch separately, for example:
 # python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
-segment-anything
-matplotlib
-scipy
-scikit-image
+-r requirements.txt
+segment-anything>=1.0,<2.0

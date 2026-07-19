@@ -1,8 +1,8 @@
+"""Prompt uncertainty experiment: modality, noise, and ensemble effects for SAM."""
+
 from __future__ import annotations
 
 import argparse
-import csv
-import hashlib
 import json
 import sys
 from dataclasses import replace
@@ -17,14 +17,14 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from promptseg.dataset import Prompt, iter_samples
 from promptseg.metrics import dice, iou
+from promptseg.utils import SEVERITIES, clip_bbox, stable_rng, write_csv
 from promptseg.visualize import draw_prediction_figure
 
-
-SEVERITIES = {
-    "clean": {"point": 0.00, "box": 0.00},
-    "mild": {"point": 0.05, "box": 0.06},
-    "moderate": {"point": 0.10, "box": 0.12},
-}
+__all__ = [
+    "PROMPT_MODES",
+    "NOISE_SOURCES",
+    "ENSEMBLE_METHODS",
+]
 
 PROMPT_MODES = ("point_only", "box_only", "point_box")
 NOISE_SOURCES = ("point_noise", "box_noise", "point_box_noise")
@@ -35,23 +35,6 @@ ENSEMBLE_METHODS = (
     "sam_vote_consensus",
     "sam_oracle_best",
 )
-
-
-def stable_rng(*parts: object) -> np.random.Generator:
-    key = "::".join(str(part) for part in parts).encode("utf-8")
-    digest = hashlib.sha256(key).digest()
-    seed = int.from_bytes(digest[:8], byteorder="little") % (2**32)
-    return np.random.default_rng(seed)
-
-
-def clip_bbox(bbox: tuple[int, int, int, int], shape: tuple[int, int]) -> tuple[int, int, int, int]:
-    h, w = shape
-    x0, y0, x1, y1 = bbox
-    x0 = int(np.clip(x0, 0, w - 1))
-    y0 = int(np.clip(y0, 0, h - 1))
-    x1 = int(np.clip(x1, x0 + 1, w))
-    y1 = int(np.clip(y1, y0 + 1, h))
-    return x0, y0, x1, y1
 
 
 def perturb_prompt(
@@ -129,9 +112,9 @@ def jitter_around_observed_prompt(
 
 
 def predict_sam(predictor, prompt: Prompt, prompt_mode: str) -> tuple[np.ndarray, float]:
-    point_coords = None
-    point_labels = None
-    box = None
+    point_coords: np.ndarray | None = None
+    point_labels: np.ndarray | None = None
+    box: np.ndarray | None = None
 
     if prompt_mode in {"point_only", "point_box"}:
         point_coords = np.array([prompt.point], dtype=np.float32)
@@ -139,12 +122,13 @@ def predict_sam(predictor, prompt: Prompt, prompt_mode: str) -> tuple[np.ndarray
     if prompt_mode in {"box_only", "point_box"}:
         box = np.array(prompt.bbox, dtype=np.float32)
 
-    masks, scores, _ = predictor.predict(
-        point_coords=point_coords,
-        point_labels=point_labels,
-        box=box,
-        multimask_output=True,
-    )
+    with torch.no_grad():
+        masks, scores, _ = predictor.predict(
+            point_coords=point_coords,
+            point_labels=point_labels,
+            box=box,
+            multimask_output=True,
+        )
     best_idx = int(np.argmax(scores))
     return masks[best_idx].astype(bool), float(scores[best_idx])
 
@@ -174,7 +158,7 @@ def summarize(rows: list[dict]) -> list[dict]:
         key = (row["experiment"], row["severity"], row["condition"], row["method"])
         grouped.setdefault(key, []).append(row)
 
-    summary_rows = []
+    summary_rows: list[dict] = []
     for (experiment, severity, condition, method), items in sorted(grouped.items()):
         ious = np.array([float(item["iou"]) for item in items], dtype=np.float64)
         dices = np.array([float(item["dice"]) for item in items], dtype=np.float64)
@@ -192,14 +176,6 @@ def summarize(rows: list[dict]) -> list[dict]:
             }
         )
     return summary_rows
-
-
-def write_csv(path: Path, rows: list[dict]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
-        writer.writeheader()
-        writer.writerows(rows)
 
 
 def plot_bar(rows: list[dict], out_path: Path, title: str, ylabel: str = "mean IoU") -> None:
@@ -372,8 +348,13 @@ def main() -> None:
     rows: list[dict] = []
     examples_written = 0
 
+    # Cache SAM image embeddings per sample to avoid redundant set_image calls.
+    cached_image_id: str | None = None
+
     for sample in samples:
-        predictor.set_image(sample.image)
+        if sample.sample_id != cached_image_id:
+            predictor.set_image(sample.image)
+            cached_image_id = sample.sample_id
 
         for prompt_mode in PROMPT_MODES:
             pred, score = predict_sam(predictor, sample.prompt, prompt_mode)
@@ -457,8 +438,8 @@ def main() -> None:
                     for variant_id in range(args.ensemble_size)
                 )
 
-                candidate_masks = []
-                candidate_scores = []
+                candidate_masks: list[np.ndarray] = []
+                candidate_scores: list[float] = []
                 for candidate_prompt in candidate_prompts:
                     mask, score = predict_sam(predictor, candidate_prompt, "point_box")
                     candidate_masks.append(mask)

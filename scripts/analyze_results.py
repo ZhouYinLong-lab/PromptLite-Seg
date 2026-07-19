@@ -1,15 +1,24 @@
+"""Analyze experiment results: per-class summaries, sample comparisons, charts."""
+
 from __future__ import annotations
 
 import argparse
-import csv
+import sys
 from collections import defaultdict
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+from promptseg.utils import write_csv
+
 
 def read_metrics(path: Path) -> list[dict]:
+    import csv
+
     with path.open("r", newline="", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
     for row in rows:
@@ -26,20 +35,12 @@ def mean_std(values: list[float]) -> tuple[float, float]:
     return float(np.mean(values)), float(np.std(values))
 
 
-def write_csv(path: Path, rows: list[dict], fieldnames: list[str]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(rows)
-
-
 def per_class_summary(rows: list[dict]) -> list[dict]:
     grouped: dict[tuple[str, str], list[dict]] = defaultdict(list)
     for row in rows:
         grouped[(row["class_name"], row["method"])].append(row)
 
-    out = []
+    out: list[dict] = []
     for (class_name, method), items in sorted(grouped.items()):
         mean_iou, std_iou = mean_std([x["iou"] for x in items])
         mean_dice, std_dice = mean_std([x["dice"] for x in items])
@@ -62,7 +63,7 @@ def sample_comparison(rows: list[dict], baseline: str, improved: str) -> list[di
     for row in rows:
         by_sample[row["sample_id"]][row["method"]] = row
 
-    out = []
+    out: list[dict] = []
     for sample_id, methods in sorted(by_sample.items()):
         if baseline not in methods or improved not in methods:
             continue
@@ -191,23 +192,10 @@ def main() -> None:
     write_csv(
         args.output_dir / "per_class_summary.csv",
         class_rows,
-        ["class_name", "method", "num_samples", "mean_iou", "std_iou", "mean_dice", "std_dice"],
     )
     write_csv(
         args.output_dir / "sample_comparison.csv",
         comparison_rows,
-        [
-            "sample_id",
-            "class_name",
-            "baseline_iou",
-            "improved_iou",
-            "delta_iou",
-            "baseline_dice",
-            "improved_dice",
-            "delta_dice",
-            "mask_pixels",
-            "pred_pixels",
-        ],
     )
     plot_per_class(class_rows, args.output_dir / "per_class_iou.png")
     plot_delta_hist(comparison_rows, args.output_dir / "iou_delta_histogram.png")

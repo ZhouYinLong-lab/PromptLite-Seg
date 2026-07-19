@@ -1,20 +1,22 @@
+"""Run SAM (Segment Anything Model) on the VOC subset for comparison."""
+
 from __future__ import annotations
 
 import argparse
-import csv
 import json
 import sys
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import matplotlib.pyplot as plt
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from promptseg.dataset import iter_samples
 from promptseg.metrics import dice, iou
+from promptseg.utils import write_csv
 from promptseg.visualize import draw_prediction_figure
 
 
@@ -41,7 +43,7 @@ def write_method_comparison(base_summary_path: Path, sam_summary: dict, out_dir:
     if not base_summary_path.exists():
         return
     base = json.loads(base_summary_path.read_text(encoding="utf-8"))
-    rows = []
+    rows: list[dict] = []
     for method in ("center_color", "robust_superpixel"):
         if method in base:
             rows.append(
@@ -62,10 +64,7 @@ def write_method_comparison(base_summary_path: Path, sam_summary: dict, out_dir:
             "std_dice": f"{sam_summary['std_dice']:.6f}",
         }
     )
-    with (out_dir / "method_comparison.csv").open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
-        writer.writeheader()
-        writer.writerows(rows)
+    write_csv(out_dir / "method_comparison.csv", rows)
     draw_method_comparison(rows, out_dir / "method_comparison.png")
 
 
@@ -105,18 +104,27 @@ def main() -> None:
     sam.to(device=args.device)
     predictor = SamPredictor(sam)
 
-    rows = []
-    ious = []
-    dices = []
+    rows: list[dict] = []
+    ious: list[float] = []
+    dices: list[float] = []
+
+    # Cache the most recent image embedding to avoid redundant set_image calls
+    # when the same image is processed multiple times in other experiments.
+    cached_image_id: str | None = None
+
     for sample in samples:
-        predictor.set_image(sample.image)
+        if sample.sample_id != cached_image_id:
+            predictor.set_image(sample.image)
+            cached_image_id = sample.sample_id
+
         box = np.array(sample.prompt.bbox, dtype=np.float32)
-        masks, scores, _ = predictor.predict(
-            point_coords=np.array([sample.prompt.point], dtype=np.float32),
-            point_labels=np.array([1], dtype=np.int32),
-            box=box,
-            multimask_output=True,
-        )
+        with torch.no_grad():
+            masks, scores, _ = predictor.predict(
+                point_coords=np.array([sample.prompt.point], dtype=np.float32),
+                point_labels=np.array([1], dtype=np.int32),
+                box=box,
+                multimask_output=True,
+            )
         best_idx = int(np.argmax(scores))
         pred = masks[best_idx].astype(bool)
         sample_iou = iou(pred, sample.mask)
@@ -151,10 +159,7 @@ def main() -> None:
         "mean_dice": float(np.mean(dices)),
         "std_dice": float(np.std(dices)),
     }
-    with (args.output_dir / "metrics.csv").open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
-        writer.writeheader()
-        writer.writerows(rows)
+    write_csv(args.output_dir / "metrics.csv", rows)
     (args.output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     write_method_comparison(args.baseline_summary, summary, args.output_dir)
     print(json.dumps(summary, indent=2))

@@ -1,7 +1,8 @@
+"""Prompt robustness experiment: perturb point+box and evaluate degradation."""
+
 from __future__ import annotations
 
 import argparse
-import csv
 import json
 import sys
 from dataclasses import replace
@@ -17,24 +18,12 @@ sys.path.insert(0, str(ROOT / "src"))
 from promptseg.algorithms import center_color, robust_superpixel
 from promptseg.dataset import Prompt, iter_samples
 from promptseg.metrics import dice, iou
+from promptseg.utils import SEVERITIES, clip_bbox, stable_rng, write_csv
 from promptseg.visualize import draw_prediction_figure
 
-
-SEVERITIES = {
-    "clean": {"point": 0.00, "box": 0.00},
-    "mild": {"point": 0.05, "box": 0.06},
-    "moderate": {"point": 0.10, "box": 0.12},
-}
-
-
-def clip_bbox(bbox: tuple[int, int, int, int], shape: tuple[int, int]) -> tuple[int, int, int, int]:
-    h, w = shape
-    x0, y0, x1, y1 = bbox
-    x0 = int(np.clip(x0, 0, w - 1))
-    y0 = int(np.clip(y0, 0, h - 1))
-    x1 = int(np.clip(x1, x0 + 1, w))
-    y1 = int(np.clip(y1, y0 + 1, h))
-    return x0, y0, x1, y1
+__all__ = [
+    "SEVERITIES",
+]
 
 
 def perturb_prompt(prompt: Prompt, shape: tuple[int, int], severity: str, trial: int, sample_id: str) -> Prompt:
@@ -45,8 +34,7 @@ def perturb_prompt(prompt: Prompt, shape: tuple[int, int], severity: str, trial:
     x0, y0, x1, y1 = prompt.bbox
     bw = max(1, x1 - x0)
     bh = max(1, y1 - y0)
-    seed = abs(hash((sample_id, severity, trial))) % (2**32)
-    rng = np.random.default_rng(seed)
+    rng = stable_rng(sample_id, severity, trial)
 
     point_scale = spec["point"]
     dx = int(round(rng.normal(0, point_scale * bw)))
@@ -82,14 +70,16 @@ def repaired_superpixel(image: np.ndarray, prompt: Prompt) -> tuple[np.ndarray, 
     return second, repaired
 
 
-def sam_predict(predictor, image: np.ndarray, prompt: Prompt) -> tuple[np.ndarray, float]:
-    predictor.set_image(image)
-    masks, scores, _ = predictor.predict(
-        point_coords=np.array([prompt.point], dtype=np.float32),
-        point_labels=np.array([1], dtype=np.int32),
-        box=np.array(prompt.bbox, dtype=np.float32),
-        multimask_output=True,
-    )
+def sam_predict(predictor, prompt: Prompt) -> tuple[np.ndarray, float]:
+    import torch
+
+    with torch.inference_mode():
+        masks, scores, _ = predictor.predict(
+            point_coords=np.array([prompt.point], dtype=np.float32),
+            point_labels=np.array([1], dtype=np.int32),
+            box=np.array(prompt.bbox, dtype=np.float32),
+            multimask_output=True,
+        )
     best_idx = int(np.argmax(scores))
     return masks[best_idx].astype(bool), float(scores[best_idx])
 
@@ -106,14 +96,15 @@ def load_sam(args):
     device = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
     sam = sam_model_registry[args.model_type](checkpoint=str(args.checkpoint))
     sam.to(device=device)
-    return SamPredictor(sam), device
+    predictor = SamPredictor(sam)
+    return predictor, device
 
 
 def summarize(rows: list[dict]) -> list[dict]:
     grouped: dict[tuple[str, str], list[dict]] = {}
     for row in rows:
         grouped.setdefault((row["severity"], row["method"]), []).append(row)
-    summary_rows = []
+    summary_rows: list[dict] = []
     for (severity, method), items in sorted(grouped.items()):
         ious = np.array([float(x["iou"]) for x in items], dtype=np.float64)
         dices = np.array([float(x["dice"]) for x in items], dtype=np.float64)
@@ -129,14 +120,6 @@ def summarize(rows: list[dict]) -> list[dict]:
             }
         )
     return summary_rows
-
-
-def write_csv(path: Path, rows: list[dict]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
-        writer.writeheader()
-        writer.writerows(rows)
 
 
 def plot_robustness(summary_rows: list[dict], out_path: Path) -> None:
@@ -204,15 +187,17 @@ def main() -> None:
     predictor = predictor_and_device[0] if predictor_and_device else None
     device = predictor_and_device[1] if predictor_and_device else "none"
 
-    rows = []
+    rows: list[dict] = []
     examples_written = 0
     for sample in samples:
+        if predictor is not None:
+            predictor.set_image(sample.image)
         for severity in SEVERITIES:
             trial_count = 1 if severity == "clean" else args.trials
             for trial in range(trial_count):
                 noisy_prompt = perturb_prompt(sample.prompt, sample.mask.shape, severity, trial, sample.sample_id)
 
-                predictions = {}
+                predictions: dict[str, np.ndarray] = {}
                 for method_name, method in (
                     ("center_color", center_color),
                     ("robust_superpixel", robust_superpixel),
@@ -248,7 +233,7 @@ def main() -> None:
                 )
 
                 if predictor is not None:
-                    sam_pred, sam_score = sam_predict(predictor, sample.image, noisy_prompt)
+                    sam_pred, sam_score = sam_predict(predictor, noisy_prompt)
                     predictions["sam_noisy"] = sam_pred
                     rows.append(
                         {

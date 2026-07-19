@@ -3,6 +3,8 @@ param(
     [switch]$SkipDownload,
     [switch]$IncludeSam,
     [switch]$IncludePromptUncertainty,
+    [string]$PythonExecutable = "python",
+    [string]$CpuOutputDir = "outputs",
     [string]$SamPython = ".\.venv-sam\Scripts\python.exe",
     [string]$Device = "cuda",
     [int]$Trials = 2,
@@ -36,12 +38,12 @@ function Require-Path {
 }
 
 Invoke-Step "Install lightweight dependencies if needed" {
-    python -m pip install -r requirements.txt
+    & $PythonExecutable -m pip install -r requirements.txt
 }
 
 if (-not $SkipDownload) {
     Invoke-Step "Download VOC subset" {
-        python scripts/download_voc_subset.py --count $Count
+        & $PythonExecutable scripts/download_voc_subset.py --count $Count
     }
 }
 else {
@@ -49,11 +51,16 @@ else {
 }
 
 Invoke-Step "Run lightweight prompt segmentation baselines" {
-    python scripts/run_experiment.py --data-dir data/voc_subset --output-dir outputs --max-samples $Count
+    & $PythonExecutable scripts/run_experiment.py `
+        --data-dir data/voc_subset `
+        --output-dir $CpuOutputDir `
+        --max-samples $Count
 }
 
 Invoke-Step "Generate per-class and success/failure analysis" {
-    python scripts/analyze_results.py --metrics outputs/metrics.csv --output-dir outputs/analysis
+    & $PythonExecutable scripts/analyze_results.py `
+        --metrics (Join-Path $CpuOutputDir "metrics.csv") `
+        --output-dir (Join-Path $CpuOutputDir "analysis")
 }
 
 if ($IncludeSam) {
@@ -91,7 +98,9 @@ else {
 
 if (Test-Path -LiteralPath "outputs\prompt_uncertainty\metrics.csv") {
     Invoke-Step "Generate statistical reliability analysis" {
-        python scripts/analyze_statistics.py
+        & $PythonExecutable scripts/analyze_statistics.py `
+            --base-metrics (Join-Path $CpuOutputDir "metrics.csv") `
+            --output-dir (Join-Path $CpuOutputDir "statistics")
     }
 }
 else {

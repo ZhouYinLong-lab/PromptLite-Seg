@@ -1,7 +1,8 @@
+"""Run the lightweight prompt segmentation baselines on the VOC subset."""
+
 from __future__ import annotations
 
 import argparse
-import csv
 import json
 import sys
 from pathlib import Path
@@ -14,6 +15,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from promptseg.algorithms import METHODS
 from promptseg.dataset import iter_samples
 from promptseg.metrics import dice, iou
+from promptseg.utils import write_csv
 from promptseg.visualize import draw_metric_summary, draw_prediction_figure
 
 
@@ -33,8 +35,8 @@ def main() -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     (args.output_dir / "figures").mkdir(parents=True, exist_ok=True)
 
-    rows = []
-    aggregate = {name: {"iou": [], "dice": []} for name in METHODS}
+    rows: list[dict] = []
+    aggregate: dict[str, dict[str, list[float]]] = {name: {"iou": [], "dice": []} for name in METHODS}
     for sample in samples:
         predictions = {}
         for name, method in METHODS.items():
@@ -65,10 +67,7 @@ def main() -> None:
             "mean_dice": float(np.mean(values["dice"])),
             "std_dice": float(np.std(values["dice"])),
         }
-    with (args.output_dir / "metrics.csv").open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
-        writer.writeheader()
-        writer.writerows(rows)
+    write_csv(args.output_dir / "metrics.csv", rows)
     (args.output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     draw_metric_summary(summary, args.output_dir / "figures" / "metric_summary.png")
 
@@ -77,4 +76,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

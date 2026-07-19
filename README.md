@@ -152,7 +152,8 @@ oracle best-of-six 可达到 `0.7401`。但分数选择的提升区间跨过 0
 
 ### 环境要求
 
-- Python 3.10 或更高版本
+- Python 3.10、3.11 或 3.12
+- `scikit-image==0.25.2`；固定该版本以同时覆盖 Python 3.10–3.12，并保持形态学清理语义一致
 - CPU 路径：Windows、Linux 或 macOS 均可运行各个 Python 脚本
 - 一键脚本：PowerShell 5.1 或 PowerShell 7+
 - SAM 路径：建议使用支持 CUDA 的 NVIDIA GPU；需单独安装匹配本机 CUDA 环境的 PyTorch
@@ -181,6 +182,16 @@ python -m venv .venv
 .\scripts\run_all.ps1 -Count 30 -SkipDownload
 ```
 
+如需使用指定解释器并避免覆盖正式输出，可传入 `-PythonExecutable` 与 `-CpuOutputDir`：
+
+```powershell
+.\scripts\run_all.ps1 `
+  -Count 30 `
+  -SkipDownload `
+  -PythonExecutable ".\.venv\Scripts\python.exe" `
+  -CpuOutputDir "outputs_verify\cpu-30"
+```
+
 也可以逐步运行，便于定位问题：
 
 ```powershell
@@ -189,6 +200,34 @@ python scripts/download_voc_subset.py --count 30
 python scripts/run_experiment.py --data-dir data/voc_subset --output-dir outputs --max-samples 30
 python scripts/analyze_results.py --metrics outputs/metrics.csv --output-dir outputs/analysis
 ```
+
+### 测试与质量保证
+
+开发或复现实验前可安装项目及测试依赖：
+
+```bash
+python -m pip install -e ".[test]"
+```
+
+依次执行语法编译检查和完整测试：
+
+```bash
+python -m compileall -q src scripts tests
+python -m pytest
+```
+
+不访问网络、不使用 GPU 的单样本 CPU smoke test：
+
+```bash
+python scripts/run_experiment.py \
+  --data-dir data/voc_subset \
+  --output-dir outputs_verify/cpu-smoke \
+  --max-samples 1
+```
+
+GitHub Actions 会在 Python 3.10、3.11、3.12 上安装相同的 CPU 依赖，执行
+`compileall`、全部 pytest 和上述离线 smoke experiment。任一步失败都会使 CI 失败；CI 不下载
+SAM checkpoint 或完整 VOC 数据。
 
 ### 路径 B：SAM 与提示不确定性实验
 

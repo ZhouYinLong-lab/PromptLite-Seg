@@ -1,13 +1,20 @@
+"""Statistical reliability analysis with bootstrapped confidence intervals."""
+
 from __future__ import annotations
 
 import argparse
-import csv
 import json
+import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+from promptseg.utils import write_csv
 
 
 def bootstrap_ci(values: np.ndarray, rng: np.random.Generator, n_boot: int) -> tuple[float, float]:
@@ -58,14 +65,6 @@ def paired_comparison(
         "paired_sign_flip_p": f"{p_value:.6f}",
         "significant_005": str(p_value < 0.05 and (low > 0 or high < 0)).lower(),
     }
-
-
-def write_csv(path: Path, rows: list[dict]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
-        writer.writeheader()
-        writer.writerows(rows)
 
 
 def plot_effects(rows: list[dict], out_path: Path) -> None:
