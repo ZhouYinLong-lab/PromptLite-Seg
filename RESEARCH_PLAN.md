@@ -35,9 +35,10 @@ artifact that does not redistribute third-party data without permission.
   add component ablations, latency, and memory measurements.
 - [x] Pre-specify primary comparisons and apply multiplicity correction.
 - [x] Update related work, results, limitations, and an anonymous submission.
-- [ ] Remove redistributable-risk VOC assets from public history; add
+- [x] Ensure no public artifact or history contains redistributable-risk VOC
+  assets; keep the historical development repository private; add
   `THIRD_PARTY_NOTICES.md`; pin official SAM source and checkpoint SHA-256.
-- [ ] Pass clean-environment tests/CI and regenerate a reviewable report.
+- [x] Pass clean-environment tests/CI and regenerate a reviewable report.
 
 ## Current evidence and blockers
 
@@ -111,3 +112,10 @@ artifact that does not redistribute third-party data without permission.
 - Found that the previous Linux CI failure came from CRLF-sensitive frozen
   source hashes. Defined source hashes canonically over LF-normalized UTF-8;
   local compile and test validation now reports 45 passed.
+- Fixed an anonymous-export leak caused by generated `.egg-info` metadata and
+  removed ambiguity between success-only and failure-zero GrabCut means. Final
+  validation reports 46 local tests passed and 11/11 result hashes matched.
+- Committed the reviewable artifact as `0944c6c`, pushed `origin/main`, and
+  observed green CPU CI on Python 3.10, 3.11, and 3.12. The repository remains
+  private and no release was created; future public OSS history must start from
+  the audited clean export rather than inherit this private development history.
