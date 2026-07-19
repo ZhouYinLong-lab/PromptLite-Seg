@@ -85,3 +85,9 @@ artifact that does not redistribute third-party data without permission.
   per-sample latency, total runtime, and sampled peak RSS. SLIC labels/features
   are now reused across box-consensus members; the refactor reproduces all
   original 30-sample CPU summary values exactly.
+- Completed the full 1,449-sample CPU run at commit `737f87d`: all proposed and
+  ablation methods succeeded on every sample; GrabCut reported eight explicit
+  initialization failures. No image-bearing outputs were generated.
+- Pinned official Meta SAM commit `dca509fe` through its codeload archive and
+  recorded archive/checkpoint SHA-256 digests. A real RTX 5070 Ti CUDA smoke run
+  completed all modality, calibrated-noise, ensemble, and oracle branches.

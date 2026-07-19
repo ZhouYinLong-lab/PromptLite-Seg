@@ -1,4 +1,4 @@
-# Install CUDA PyTorch separately, for example:
-# python -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+# Install a PyTorch build compatible with the local GPU separately.
+# The official SAM source is pinned to an immutable Meta commit.
 -r requirements.txt
-segment-anything>=1.0,<2.0
+segment-anything @ https://codeload.github.com/facebookresearch/segment-anything/zip/dca509fe793f601edb92606367a655c15ac00fdf#sha256=775a9fa2ea5441a7f532c77a9a193fec21764ef59e008bbdd595fee84e3aaab6

@@ -16,7 +16,14 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from promptseg.dataset import Prompt, iter_samples
 from promptseg.metrics import dice, iou
-from promptseg.prompts import NOISE_SOURCES, perturb_by_severity
+from promptseg.prompts import (
+    NOISE_SOURCES,
+    jitter_around_observed_prompt,
+    mask_iou_matrix,
+    perturb_by_severity,
+    select_consistency_medoid,
+    select_ensemble_predictions,
+)
 from promptseg.sam import PROMPT_MODES, predict_sam
 from promptseg.utils import SEVERITIES, clip_bbox, stable_rng, write_csv
 from promptseg.visualize import draw_prediction_figure
@@ -52,86 +59,6 @@ def perturb_prompt(
         trial,
         sample_id,
     )
-
-
-def jitter_around_observed_prompt(
-    prompt: Prompt,
-    shape: tuple[int, int],
-    severity: str,
-    trial: int,
-    variant_id: int,
-    sample_id: str,
-) -> Prompt:
-    spec = SEVERITIES[severity]
-    h, w = shape
-    x0, y0, x1, y1 = prompt.bbox
-    bw = max(1, x1 - x0)
-    bh = max(1, y1 - y0)
-    rng = stable_rng(sample_id, "ensemble", severity, trial, variant_id)
-
-    # Search locally around the observed noisy prompt. The original clean prompt is not used.
-    point_scale = 0.55 * spec["point"]
-    dx = int(round(rng.normal(0, point_scale * bw)))
-    dy = int(round(rng.normal(0, point_scale * bh)))
-    px = int(np.clip(prompt.point[0] + dx, 0, w - 1))
-    py = int(np.clip(prompt.point[1] + dy, 0, h - 1))
-
-    box_scale = 0.55 * spec["box"]
-    tx = int(round(rng.normal(0, box_scale * bw)))
-    ty = int(round(rng.normal(0, box_scale * bh)))
-    grow_l = int(round(rng.normal(0, box_scale * bw)))
-    grow_t = int(round(rng.normal(0, box_scale * bh)))
-    grow_r = int(round(rng.normal(0, box_scale * bw)))
-    grow_b = int(round(rng.normal(0, box_scale * bh)))
-    bbox = clip_bbox((x0 + tx - grow_l, y0 + ty - grow_t, x1 + tx + grow_r, y1 + ty + grow_b), shape)
-    return replace(prompt, bbox=bbox, point=(px, py))
-
-
-def mask_iou_matrix(masks: list[np.ndarray]) -> np.ndarray:
-    n = len(masks)
-    out = np.eye(n, dtype=np.float64)
-    for i in range(n):
-        for j in range(i + 1, n):
-            value = iou(masks[i], masks[j])
-            out[i, j] = value
-            out[j, i] = value
-    return out
-
-
-def select_consistency_medoid(masks: list[np.ndarray]) -> np.ndarray:
-    if len(masks) == 1:
-        return masks[0]
-    pairwise = mask_iou_matrix(masks)
-    scores = (pairwise.sum(axis=1) - 1.0) / (len(masks) - 1)
-    return masks[int(np.argmax(scores))]
-
-
-def select_ensemble_predictions(
-    candidate_masks: list[np.ndarray],
-    candidate_scores: list[float],
-    target: np.ndarray,
-) -> dict[str, tuple[np.ndarray, float]]:
-    """Return deployable ensemble selections plus an explicit oracle bound."""
-
-    if not candidate_masks or len(candidate_masks) != len(candidate_scores):
-        raise ValueError("candidate masks and scores must be non-empty and aligned")
-    oracle_idx = int(np.argmax([iou(mask, target) for mask in candidate_masks]))
-    return {
-        "sam_single_noisy": (candidate_masks[0], candidate_scores[0]),
-        "sam_score_select": (
-            candidate_masks[int(np.argmax(candidate_scores))],
-            max(candidate_scores),
-        ),
-        "sam_consistency_medoid": (
-            select_consistency_medoid(candidate_masks),
-            float(np.mean(candidate_scores)),
-        ),
-        "sam_vote_consensus": (
-            np.mean(np.stack(candidate_masks, axis=0), axis=0) >= 0.5,
-            float(np.mean(candidate_scores)),
-        ),
-        "sam_oracle_best": (candidate_masks[oracle_idx], candidate_scores[oracle_idx]),
-    }
 
 
 def summarize(rows: list[dict]) -> list[dict]:

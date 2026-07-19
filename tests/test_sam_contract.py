@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from contextlib import nullcontext
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -169,7 +170,11 @@ class FakeCliPredictor:
 
 def install_fake_sam_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
     torch_module = ModuleType("torch")
-    torch_module.cuda = SimpleNamespace(is_available=lambda: False)
+    torch_module.cuda = SimpleNamespace(
+        is_available=lambda: True,
+        reset_peak_memory_stats=lambda: None,
+        max_memory_allocated=lambda: 1024,
+    )
     torch_module.inference_mode = nullcontext
     torch_module.no_grad = nullcontext
     monkeypatch.setitem(sys.modules, "torch", torch_module)
@@ -193,6 +198,11 @@ def install_fake_sam_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
             ["--trials", "1", "--ensemble-size", "1"],
             "ensemble_size",
         ),
+        (
+            "scripts.run_confirmatory_sam",
+            ["--trials", "1", "--ensemble-size", "1"],
+            "num_rows",
+        ),
     ],
 )
 def test_sam_cli_branches_run_with_contract_runtime(
@@ -208,6 +218,8 @@ def test_sam_cli_branches_run_with_contract_runtime(
     module = __import__(module_name, fromlist=["main"])
     checkpoint = tmp_path / "fake-sam.pth"
     checkpoint.write_bytes(b"contract-test-only")
+    if module_name.endswith("run_confirmatory_sam"):
+        module.CHECKPOINT_SHA256 = hashlib.sha256(checkpoint.read_bytes()).hexdigest()
     output_dir = tmp_path / module_name.rsplit(".", 1)[-1]
     argv = [
         module_name,

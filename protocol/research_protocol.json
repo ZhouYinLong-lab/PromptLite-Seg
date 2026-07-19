@@ -49,7 +49,9 @@
       "robust_single_box"
     ],
     "grabcut_iterations": 5,
-    "sam_model": "vit_b"
+    "sam_model": "vit_b",
+    "sam_confirmatory_trials_per_sample": 5,
+    "sam_ensemble_additional_candidates": 5
   },
   "primary_hypotheses": [
     {
@@ -92,7 +94,10 @@
   },
   "frozen_algorithm_sources": {
     "src/promptseg/algorithms.py": "7fbc3fdd26938f88608c89511ffaaf199d1e3cc7b54a3a871997660f6356265f",
-    "src/promptseg/utils.py": "fefff391128db133d39b681a5dd929e053e01473b52c82686525e59b5ed1e29a"
+    "src/promptseg/utils.py": "fefff391128db133d39b681a5dd929e053e01473b52c82686525e59b5ed1e29a",
+    "src/promptseg/prompts.py": "42803f89863557a3903bba2a1a7b71286a3aa16910516d5690d7c32e100a169f",
+    "src/promptseg/sam.py": "96166ed24fba5b6ea8925dacfdb0ef033bc00dda9711fe8c2e131d250e7d343d",
+    "scripts/run_confirmatory_sam.py": "34508fdf0f18cd63061dee0adb7b7d3554f50971356a47d6dfdd98eb19f374d5"
   },
   "reporting": {
     "required_strata": ["class_name", "target_area_quartile"],

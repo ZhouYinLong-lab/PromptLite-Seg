@@ -7,6 +7,7 @@ from dataclasses import replace
 import numpy as np
 
 from .dataset import Prompt
+from .metrics import iou
 from .utils import SEVERITIES, clip_bbox, stable_rng
 
 
@@ -94,3 +95,88 @@ def perturb_by_severity(
         trial=trial,
         sample_id=sample_id,
     )
+
+
+def jitter_around_observed_prompt(
+    prompt: Prompt,
+    shape: tuple[int, int],
+    severity: str,
+    trial: int,
+    variant_id: int,
+    sample_id: str,
+) -> Prompt:
+    """Sample a local candidate without consulting the unavailable clean prompt."""
+
+    specification = SEVERITIES[severity]
+    height, width = shape
+    x0, y0, x1, y1 = prompt.bbox
+    box_width = max(1, x1 - x0)
+    box_height = max(1, y1 - y0)
+    rng = stable_rng(sample_id, "ensemble", severity, trial, variant_id)
+    point_scale = 0.55 * specification["point"]
+    point_x = int(np.clip(prompt.point[0] + round(rng.normal(0, point_scale * box_width)), 0, width - 1))
+    point_y = int(np.clip(prompt.point[1] + round(rng.normal(0, point_scale * box_height)), 0, height - 1))
+    box_scale = 0.55 * specification["box"]
+    translate_x = int(round(rng.normal(0, box_scale * box_width)))
+    translate_y = int(round(rng.normal(0, box_scale * box_height)))
+    grow_left = int(round(rng.normal(0, box_scale * box_width)))
+    grow_top = int(round(rng.normal(0, box_scale * box_height)))
+    grow_right = int(round(rng.normal(0, box_scale * box_width)))
+    grow_bottom = int(round(rng.normal(0, box_scale * box_height)))
+    bbox = clip_bbox(
+        (
+            x0 + translate_x - grow_left,
+            y0 + translate_y - grow_top,
+            x1 + translate_x + grow_right,
+            y1 + translate_y + grow_bottom,
+        ),
+        shape,
+    )
+    return replace(prompt, bbox=bbox, point=(point_x, point_y))
+
+
+def mask_iou_matrix(masks: list[np.ndarray]) -> np.ndarray:
+    count = len(masks)
+    output = np.eye(count, dtype=np.float64)
+    for first in range(count):
+        for second in range(first + 1, count):
+            value = iou(masks[first], masks[second])
+            output[first, second] = value
+            output[second, first] = value
+    return output
+
+
+def select_consistency_medoid(masks: list[np.ndarray]) -> np.ndarray:
+    if len(masks) == 1:
+        return masks[0]
+    pairwise = mask_iou_matrix(masks)
+    scores = (pairwise.sum(axis=1) - 1.0) / (len(masks) - 1)
+    return masks[int(np.argmax(scores))]
+
+
+def select_ensemble_predictions(
+    candidate_masks: list[np.ndarray],
+    candidate_scores: list[float],
+    target: np.ndarray,
+) -> dict[str, tuple[np.ndarray, float]]:
+    """Return deployable ensemble selections plus an explicit oracle bound."""
+
+    if not candidate_masks or len(candidate_masks) != len(candidate_scores):
+        raise ValueError("candidate masks and scores must be non-empty and aligned")
+    oracle_index = int(np.argmax([iou(mask, target) for mask in candidate_masks]))
+    return {
+        "sam_single_noisy": (candidate_masks[0], candidate_scores[0]),
+        "sam_score_select": (
+            candidate_masks[int(np.argmax(candidate_scores))],
+            max(candidate_scores),
+        ),
+        "sam_consistency_medoid": (
+            select_consistency_medoid(candidate_masks),
+            float(np.mean(candidate_scores)),
+        ),
+        "sam_vote_consensus": (
+            np.mean(np.stack(candidate_masks, axis=0), axis=0) >= 0.5,
+            float(np.mean(candidate_scores)),
+        ),
+        "sam_oracle_best": (candidate_masks[oracle_index], candidate_scores[oracle_index]),
+    }
