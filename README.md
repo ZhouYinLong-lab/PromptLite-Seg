@@ -103,7 +103,7 @@ Robust Superpixel 相比 Center Color 的平均 IoU 提升 `+0.0562`，95% CI �
 | 点 + 框 | 0.8325 | 0.9002 |
 | 仅框提示 | **0.8565** | **0.9150** |
 
-在当前受控子集上，SAM 呈现明显的**框主导（box-dominated）**特征。仅框提示相对点 + 框提升 `+0.0240 IoU`，95% CI 为 `[0.0080, 0.0421]`，`p = 0.00922`。
+在当前受控子集上，SAM 呈现明显的 **框主导（box-dominated）** 特征。仅框提示相对点 + 框提升 `+0.0240 IoU`，95% CI 为 `[0.0080, 0.0421]`，`p = 0.00922`。
 
 ![SAM 提示模态对比](outputs/prompt_uncertainty/prompt_modality.png)
 
