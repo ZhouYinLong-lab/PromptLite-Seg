@@ -1,103 +1,25 @@
 from __future__ import annotations
 
 import argparse
-import io
 import sys
 from pathlib import Path
 
 import numpy as np
-import pyarrow.parquet as pq
-import requests
 from PIL import Image
-from scipy import ndimage as ndi
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from promptseg.dataset import VOC_CLASSES
-
-
-VAL_PARQUET_URL = (
-    "https://huggingface.co/datasets/nateraw/pascal-voc-2012/resolve/main/"
-    "data/val-00000-of-00001.parquet"
+from promptseg.voc import (
+    VOC_PARQUET_URLS,
+    bbox_and_point,
+    decode_image,
+    decode_voc_mask,
+    download_file,
+    largest_component,
+    read_voc_table,
 )
-
-
-def download_file(url: str, out_path: Path) -> None:
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    if out_path.exists() and out_path.stat().st_size > 0:
-        return
-    with requests.get(url, stream=True, timeout=60) as response:
-        response.raise_for_status()
-        with out_path.open("wb") as f:
-            for chunk in response.iter_content(chunk_size=1024 * 1024):
-                if chunk:
-                    f.write(chunk)
-
-
-def decode_image(cell: dict) -> Image.Image:
-    if cell.get("bytes") is not None:
-        return Image.open(io.BytesIO(cell["bytes"]))
-    if cell.get("path") is not None:
-        return Image.open(cell["path"])
-    raise ValueError("Unsupported Hugging Face image cell.")
-
-
-def voc_palette() -> dict[tuple[int, int, int], int]:
-    palette = {}
-    for label in range(256):
-        r = g = b = 0
-        cid = label
-        for bit in range(8):
-            r |= ((cid >> 0) & 1) << (7 - bit)
-            g |= ((cid >> 1) & 1) << (7 - bit)
-            b |= ((cid >> 2) & 1) << (7 - bit)
-            cid >>= 3
-        palette[(r, g, b)] = label
-    return palette
-
-
-def decode_voc_mask(image: Image.Image) -> np.ndarray:
-    arr = np.asarray(image)
-    if arr.ndim == 2:
-        return arr.astype(np.uint8)
-    arr = np.asarray(image.convert("RGB"))
-    label_map = np.zeros(arr.shape[:2], dtype=np.uint8)
-    palette = voc_palette()
-    flat = arr.reshape(-1, 3)
-    out = label_map.reshape(-1)
-    colors = np.unique(flat, axis=0)
-    for color in colors:
-        key = tuple(int(v) for v in color)
-        out[np.all(flat == color, axis=1)] = palette.get(key, 255)
-    return label_map
-
-
-def largest_component(mask: np.ndarray) -> tuple[int, np.ndarray] | None:
-    best_label = None
-    best_component = None
-    best_area = 0
-    for label in sorted(int(x) for x in np.unique(mask) if 1 <= int(x) <= 20):
-        labeled, count = ndi.label(mask == label)
-        for idx in range(1, count + 1):
-            component = labeled == idx
-            area = int(component.sum())
-            if area > best_area:
-                best_area = area
-                best_label = label
-                best_component = component
-    if best_label is None or best_component is None:
-        return None
-    return best_label, best_component
-
-
-def bbox_and_point(component: np.ndarray) -> tuple[tuple[int, int, int, int], tuple[int, int]]:
-    ys, xs = np.where(component)
-    x0, x1 = int(xs.min()), int(xs.max()) + 1
-    y0, y1 = int(ys.min()), int(ys.max()) + 1
-    dist = ndi.distance_transform_edt(component)
-    py, px = np.unravel_index(int(dist.argmax()), dist.shape)
-    return (x0, y0, x1, y1), (int(px), int(py))
 
 
 def main() -> None:
@@ -110,9 +32,9 @@ def main() -> None:
 
     parquet_path = args.cache_dir / "pascal_voc_2012_val.parquet"
     print(f"Downloading or reusing {parquet_path} ...")
-    download_file(VAL_PARQUET_URL, parquet_path)
+    download_file(VOC_PARQUET_URLS["val"], parquet_path)
 
-    table = pq.read_table(parquet_path, columns=["image", "mask"])
+    table = read_voc_table(parquet_path, columns=["image", "mask"])
     args.output_dir.mkdir(parents=True, exist_ok=True)
     written = 0
     row_count = table.num_rows

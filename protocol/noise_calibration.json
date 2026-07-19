@@ -1,0 +1,42 @@
+{
+  "protocol_version": "1.0",
+  "tuning_manifest_sha256": "de5cf1773e8eb88d44f7324564822251d869e5326a1b79ef53d1fd784ced44e2",
+  "num_tuning_samples": 100,
+  "trials_per_target": 20,
+  "grid_step": 0.0025,
+  "seed_namespace": "promptlite-seg-calibration-v1",
+  "quality_definition": {
+    "point": "aggregate target-mask hit rate",
+    "box": "mean IoU with the clean tight box"
+  },
+  "results": {
+    "mild": {
+      "point": {
+        "scale": 0.1675,
+        "target_quality": 0.85,
+        "observed_quality": 0.848,
+        "absolute_error": 0.0020000000000000018
+      },
+      "box": {
+        "scale": 0.04,
+        "target_quality": 0.85,
+        "observed_quality": 0.8537843600493937,
+        "absolute_error": 0.0037843600493937535
+      }
+    },
+    "moderate": {
+      "point": {
+        "scale": 0.2725,
+        "target_quality": 0.65,
+        "observed_quality": 0.6495,
+        "absolute_error": 0.000500000000000056
+      },
+      "box": {
+        "scale": 0.115,
+        "target_quality": 0.65,
+        "observed_quality": 0.6509153649657576,
+        "absolute_error": 0.0009153649657576146
+      }
+    }
+  }
+}

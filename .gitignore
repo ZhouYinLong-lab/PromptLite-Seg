@@ -8,7 +8,10 @@ __pycache__/
 .venv-*/
 venv/
 data/cache/
+data/voc_tuning/
+data/voc_validation/
 outputs_verify/
+outputs_confirmatory/
 checkpoints/
 reports/*.aux
 reports/*.log

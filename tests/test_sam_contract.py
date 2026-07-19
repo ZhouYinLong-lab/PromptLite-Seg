@@ -7,6 +7,7 @@ from pathlib import Path
 import sys
 from types import ModuleType, SimpleNamespace
 
+import matplotlib
 import numpy as np
 import pytest
 
@@ -202,6 +203,7 @@ def test_sam_cli_branches_run_with_contract_runtime(
     extra_args: list[str],
     expected_key: str,
 ) -> None:
+    matplotlib.use("Agg", force=True)
     install_fake_sam_runtime(monkeypatch)
     module = __import__(module_name, fromlist=["main"])
     checkpoint = tmp_path / "fake-sam.pth"

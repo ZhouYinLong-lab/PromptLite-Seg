@@ -16,6 +16,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from promptseg.dataset import Prompt, iter_samples
 from promptseg.metrics import dice, iou
+from promptseg.prompts import NOISE_SOURCES, perturb_by_severity
 from promptseg.sam import PROMPT_MODES, predict_sam
 from promptseg.utils import SEVERITIES, clip_bbox, stable_rng, write_csv
 from promptseg.visualize import draw_prediction_figure
@@ -26,7 +27,6 @@ __all__ = [
     "ENSEMBLE_METHODS",
 ]
 
-NOISE_SOURCES = ("point_noise", "box_noise", "point_box_noise")
 ENSEMBLE_METHODS = (
     "sam_single_noisy",
     "sam_score_select",
@@ -44,37 +44,14 @@ def perturb_prompt(
     trial: int,
     sample_id: str,
 ) -> Prompt:
-    if severity == "clean":
-        return prompt
-    if noise_source not in {"point_noise", "box_noise", "point_box_noise"}:
-        raise ValueError(f"Unknown noise source: {noise_source}")
-
-    spec = SEVERITIES[severity]
-    h, w = shape
-    x0, y0, x1, y1 = prompt.bbox
-    bw = max(1, x1 - x0)
-    bh = max(1, y1 - y0)
-    rng = stable_rng(sample_id, severity, noise_source, trial)
-
-    px, py = prompt.point
-    if noise_source in {"point_noise", "point_box_noise"}:
-        dx = int(round(rng.normal(0, spec["point"] * bw)))
-        dy = int(round(rng.normal(0, spec["point"] * bh)))
-        px = int(np.clip(px + dx, 0, w - 1))
-        py = int(np.clip(py + dy, 0, h - 1))
-
-    bbox = prompt.bbox
-    if noise_source in {"box_noise", "point_box_noise"}:
-        box_scale = spec["box"]
-        tx = int(round(rng.normal(0, box_scale * bw)))
-        ty = int(round(rng.normal(0, box_scale * bh)))
-        grow_l = int(round(rng.normal(0, box_scale * bw)))
-        grow_t = int(round(rng.normal(0, box_scale * bh)))
-        grow_r = int(round(rng.normal(0, box_scale * bw)))
-        grow_b = int(round(rng.normal(0, box_scale * bh)))
-        bbox = clip_bbox((x0 + tx - grow_l, y0 + ty - grow_t, x1 + tx + grow_r, y1 + ty + grow_b), shape)
-
-    return replace(prompt, bbox=bbox, point=(px, py))
+    return perturb_by_severity(
+        prompt,
+        shape,
+        severity,
+        noise_source,
+        trial,
+        sample_id,
+    )
 
 
 def jitter_around_observed_prompt(

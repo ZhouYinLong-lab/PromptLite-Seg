@@ -20,8 +20,11 @@ __all__ = [
 # for point and box perturbations.
 SEVERITIES: dict[str, dict[str, float]] = {
     "clean": {"point": 0.00, "box": 0.00},
-    "mild": {"point": 0.05, "box": 0.06},
-    "moderate": {"point": 0.10, "box": 0.12},
+    # Calibrated on the frozen 100-sample VOC train tuning split. Point hit
+    # rate and mean box IoU target the same aggregate quality level (0.85).
+    "mild": {"point": 0.1675, "box": 0.0400},
+    # Matched aggregate quality target: 0.65.
+    "moderate": {"point": 0.2725, "box": 0.1150},
 }
 
 

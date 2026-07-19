@@ -26,10 +26,10 @@ artifact that does not redistribute third-party data without permission.
 
 - [x] Fix the SAM robustness call contract and add mock/contract coverage for
   every SAM execution branch.
-- [ ] Freeze algorithms, hyperparameters, hypotheses, and evaluation protocol.
+- [x] Freeze algorithms, hyperparameters, hypotheses, and evaluation protocol.
 - [ ] Create a disjoint tuning split and either evaluate all 1,449 VOC 2012
   validation images or a precommitted class-stratified sample of at least 300.
-- [ ] Calibrate point and box perturbations using measured point-hit rate and box
+- [x] Calibrate point and box perturbations using measured point-hit rate and box
   IoU (or a cited human-prompt error distribution).
 - [ ] Add GrabCut and at least one standard interactive-segmentation baseline;
   add component ablations, latency, and memory measurements.
@@ -68,3 +68,13 @@ artifact that does not redistribute third-party data without permission.
 - Added CPU-only fake-runtime tests that execute the basic SAM, robustness, and
   prompt-uncertainty CLIs, including point-only, box-only, point+box, repaired,
   score-selected, consistency, vote, and oracle branches. Full suite: 29 passed.
+- Built immutable data-free manifests: a disjoint VOC train tuning set with five
+  targets per class (100 total) and all 1,449 VOC validation rows for
+  confirmatory evaluation. Source parquet files and manifests have SHA-256
+  digests recorded in `protocol/manifests/manifest_summary.json`.
+- Froze three primary IoU hypotheses, Holm family correction, reporting rules,
+  algorithm-source hashes, and the rule that oracle results are descriptive
+  upper bounds only in `protocol/research_protocol.json`.
+- Calibrated prompt noise only on the tuning split. Mild point hit rate / box IoU
+  are 0.8480 / 0.8538; moderate values are 0.6495 / 0.6509. The resulting scales
+  are frozen in `protocol/noise_calibration.json` and runtime constants.

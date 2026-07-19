@@ -138,7 +138,9 @@ def iter_samples(data_dir: str | Path):
     single corrupt sample does not crash the entire experiment loop.
     """
     root = Path(data_dir)
-    for sample_dir in sorted(root.glob("sample_*")):
+    if not root.exists():
+        return
+    for sample_dir in sorted(path for path in root.iterdir() if path.is_dir()):
         required = [sample_dir / "image.jpg", sample_dir / "target_mask.png", sample_dir / "prompt.txt"]
         if all(p.exists() for p in required):
             try:

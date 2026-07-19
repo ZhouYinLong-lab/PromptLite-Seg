@@ -18,8 +18,9 @@ sys.path.insert(0, str(ROOT / "src"))
 from promptseg.algorithms import center_color, robust_superpixel
 from promptseg.dataset import Prompt, iter_samples
 from promptseg.metrics import dice, iou
+from promptseg.prompts import perturb_by_severity
 from promptseg.sam import predict_sam
-from promptseg.utils import SEVERITIES, clip_bbox, stable_rng, write_csv
+from promptseg.utils import SEVERITIES, write_csv
 from promptseg.visualize import draw_prediction_figure
 
 __all__ = [
@@ -28,30 +29,14 @@ __all__ = [
 
 
 def perturb_prompt(prompt: Prompt, shape: tuple[int, int], severity: str, trial: int, sample_id: str) -> Prompt:
-    if severity == "clean":
-        return prompt
-    spec = SEVERITIES[severity]
-    h, w = shape
-    x0, y0, x1, y1 = prompt.bbox
-    bw = max(1, x1 - x0)
-    bh = max(1, y1 - y0)
-    rng = stable_rng(sample_id, severity, trial)
-
-    point_scale = spec["point"]
-    dx = int(round(rng.normal(0, point_scale * bw)))
-    dy = int(round(rng.normal(0, point_scale * bh)))
-    px = int(np.clip(prompt.point[0] + dx, 0, w - 1))
-    py = int(np.clip(prompt.point[1] + dy, 0, h - 1))
-
-    box_scale = spec["box"]
-    tx = int(round(rng.normal(0, box_scale * bw)))
-    ty = int(round(rng.normal(0, box_scale * bh)))
-    grow_l = int(round(rng.normal(0, box_scale * bw)))
-    grow_t = int(round(rng.normal(0, box_scale * bh)))
-    grow_r = int(round(rng.normal(0, box_scale * bw)))
-    grow_b = int(round(rng.normal(0, box_scale * bh)))
-    noisy_bbox = clip_bbox((x0 + tx - grow_l, y0 + ty - grow_t, x1 + tx + grow_r, y1 + ty + grow_b), shape)
-    return replace(prompt, bbox=noisy_bbox, point=(px, py))
+    return perturb_by_severity(
+        prompt,
+        shape,
+        severity,
+        "point_box_noise",
+        trial,
+        sample_id,
+    )
 
 
 def prompt_from_mask(mask: np.ndarray, fallback: Prompt) -> Prompt:

@@ -1,0 +1,83 @@
+{
+  "protocol_version": "1.0",
+  "status": "frozen_before_confirmatory_evaluation",
+  "frozen_at": "2026-07-19",
+  "originating_baseline_commit": "e464cf5359e7325ca4af3401d089c73a966de7dc",
+  "sam_contract_fix_commit": "e43c19617fbd06ef440af7186013c1ff7c4a8304",
+  "task": {
+    "dataset": "PASCAL VOC 2012",
+    "target": "largest connected component among semantic foreground labels 1-20 in each image",
+    "clean_prompt": "tight target bounding box plus target interior distance-transform maximum",
+    "training_policy": "no learning or tuning on confirmatory validation data"
+  },
+  "splits": {
+    "exploratory": "The previously committed 30 validation rows remain exploratory only.",
+    "tuning": {
+      "source": "VOC 2012 train",
+      "manifest": "protocol/manifests/tuning_train.jsonl",
+      "manifest_sha256": "de5cf1773e8eb88d44f7324564822251d869e5326a1b79ef53d1fd784ced44e2",
+      "samples": 100,
+      "sampling": "seed 20260719; 5 targets per largest-component class"
+    },
+    "confirmatory": {
+      "source": "VOC 2012 validation",
+      "manifest": "protocol/manifests/confirmatory_validation.jsonl",
+      "manifest_sha256": "7b89d688548708a7dca6ede27824294c6280710e7078e56b45ab53f70ef1fade",
+      "samples": 1449,
+      "sampling": "all validation rows; no subsampling or minimum-area exclusion"
+    }
+  },
+  "metrics": {
+    "primary": "IoU",
+    "secondary": ["Dice", "latency_ms", "peak_rss_mb"],
+    "aggregation": "macro average over target instances with paired sample-level deltas"
+  },
+  "primary_hypotheses": [
+    {
+      "id": "H1",
+      "comparison": "robust_superpixel versus center_color under clean prompts",
+      "direction": "robust_superpixel has higher mean IoU"
+    },
+    {
+      "id": "H2",
+      "comparison": "SAM score-selected ensemble versus a single noisy prompt under calibrated moderate point+box noise",
+      "direction": "score selection has higher mean IoU"
+    },
+    {
+      "id": "H3",
+      "comparison": "SAM box-noise loss versus point-noise loss at matched calibrated prompt quality",
+      "direction": "box noise causes a larger mean IoU loss"
+    }
+  ],
+  "statistics": {
+    "alpha": 0.05,
+    "confidence_interval": "paired bootstrap 95% interval over sample-level deltas",
+    "test": "paired sign-flip permutation test",
+    "primary_family_correction": "Holm step-down correction across H1-H3",
+    "secondary_analyses": "exploratory; report effect sizes and intervals without confirmatory language",
+    "oracle_policy": "oracle selections are descriptive upper bounds and excluded from deployable claims"
+  },
+  "noise_calibration": {
+    "data": "tuning split only",
+    "quality_levels": {
+      "mild": 0.85,
+      "moderate": 0.65
+    },
+    "point_quality": "aggregate target-mask hit rate",
+    "box_quality": "mean IoU with the clean tight box",
+    "selection": "independent deterministic grid search minimizing absolute error to the same quality target",
+    "trials_per_target": 20,
+    "seed_namespace": "promptlite-seg-calibration-v1",
+    "artifact": "protocol/noise_calibration.json",
+    "artifact_sha256": "f794a025d85cd5f6e8ec44dcd0f38638ec06f0d0963becf21c9c785435bd3e8c"
+  },
+  "frozen_algorithm_sources": {
+    "src/promptseg/algorithms.py": "0077ad1efacf451e6e7f47fd787489c05e4628c933f3c1e5e1be01a7416869dd",
+    "src/promptseg/utils.py": "fefff391128db133d39b681a5dd929e053e01473b52c82686525e59b5ed1e29a"
+  },
+  "reporting": {
+    "required_strata": ["class_name", "target_area_quartile"],
+    "required_failures": "report missing cases, runtime failures, and exclusions; no silent dropping",
+    "anonymity": "submission PDF and supplementary artifact must contain no author, repository, account, or Git-history identity"
+  }
+}

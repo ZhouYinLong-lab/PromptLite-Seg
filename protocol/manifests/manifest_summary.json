@@ -1,0 +1,74 @@
+{
+  "seed": 20260719,
+  "tuning_per_class": 5,
+  "sources": {
+    "train": {
+      "url": "https://huggingface.co/datasets/nateraw/pascal-voc-2012/resolve/main/data/train-00000-of-00001.parquet",
+      "sha256": "7b3f275d2d634f6e2a8d1b82bee7f3b15491ade0d8fd60ae643b09478de2dbf2",
+      "size_bytes": 166391513
+    },
+    "val": {
+      "url": "https://huggingface.co/datasets/nateraw/pascal-voc-2012/resolve/main/data/val-00000-of-00001.parquet",
+      "sha256": "6f3831b96a8c5705e7f5146c1e9c3e066f75020ab421b70ae7580a6929aa3722",
+      "size_bytes": 166877677
+    }
+  },
+  "tuning": {
+    "num_samples": 100,
+    "num_classes": 20,
+    "class_counts": {
+      "aeroplane": 5,
+      "bicycle": 5,
+      "bird": 5,
+      "boat": 5,
+      "bottle": 5,
+      "bus": 5,
+      "car": 5,
+      "cat": 5,
+      "chair": 5,
+      "cow": 5,
+      "diningtable": 5,
+      "dog": 5,
+      "horse": 5,
+      "motorbike": 5,
+      "person": 5,
+      "pottedplant": 5,
+      "sheep": 5,
+      "sofa": 5,
+      "train": 5,
+      "tvmonitor": 5
+    },
+    "source_rows_sha256": "0e9f499aeeeffba420e6e6726ccaec1cd601d21c03b6984d367a5ad9b23ba7f6",
+    "manifest": "protocol/manifests/tuning_train.jsonl",
+    "manifest_sha256": "de5cf1773e8eb88d44f7324564822251d869e5326a1b79ef53d1fd784ced44e2"
+  },
+  "confirmatory": {
+    "num_samples": 1449,
+    "num_classes": 20,
+    "class_counts": {
+      "aeroplane": 89,
+      "bicycle": 38,
+      "bird": 95,
+      "boat": 67,
+      "bottle": 37,
+      "bus": 67,
+      "car": 75,
+      "cat": 98,
+      "chair": 32,
+      "cow": 67,
+      "diningtable": 43,
+      "dog": 101,
+      "horse": 74,
+      "motorbike": 61,
+      "person": 229,
+      "pottedplant": 31,
+      "sheep": 54,
+      "sofa": 65,
+      "train": 82,
+      "tvmonitor": 44
+    },
+    "source_rows_sha256": "f8a82b7fde7f2ef995878f750754c6209e0663ae588f87e77f7b6cf96c5bdb74",
+    "manifest": "protocol/manifests/confirmatory_validation.jsonl",
+    "manifest_sha256": "7b89d688548708a7dca6ede27824294c6280710e7078e56b45ab53f70ef1fade"
+  }
+}

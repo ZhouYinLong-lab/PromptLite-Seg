@@ -60,6 +60,16 @@ def test_iter_samples_uses_sample_directories(synthetic_data_dir: Path) -> None:
     assert [sample.sample_id for sample in samples] == ["sample_000"]
 
 
+def test_iter_samples_accepts_protocol_identifiers(synthetic_data_dir: Path) -> None:
+    source = synthetic_data_dir / "sample_000"
+    protocol_sample = synthetic_data_dir / "train_000123"
+    source.rename(protocol_sample)
+
+    samples = list(iter_samples(synthetic_data_dir))
+
+    assert [sample.sample_id for sample in samples] == ["train_000123"]
+
+
 def test_load_sample_rejects_malformed_prompt(synthetic_data_dir: Path) -> None:
     prompt_path = synthetic_data_dir / "sample_000" / "prompt.txt"
     prompt_path.write_text("label=1\npoint=24,24\n", encoding="utf-8")
