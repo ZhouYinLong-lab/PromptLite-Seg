@@ -124,4 +124,4 @@ def test_confirmatory_artifact_checksums_match_exact_file_set() -> None:
 
     assert observed == expected
     for expected_hash, relative in rows:
-        assert sha256(artifact_root / relative) == expected_hash
+        assert canonical_source_sha256(artifact_root / relative) == expected_hash

@@ -117,6 +117,11 @@ def audit_entry(path: Path, archive_name: str, banned: tuple[str, ...]) -> None:
         raise RuntimeError(f"Identity-bearing text in {archive_name}: {found}")
 
 
+def archive_payload(path: Path) -> bytes:
+    payload = path.read_bytes()
+    return payload if path.suffix.lower() == ".pdf" else payload.replace(b"\r\n", b"\n")
+
+
 def build_archive(output: Path, banned: tuple[str, ...] = DEFAULT_BANNED) -> None:
     entries = source_files()
     for path, archive_name in entries:
@@ -129,7 +134,7 @@ def build_archive(output: Path, banned: tuple[str, ...] = DEFAULT_BANNED) -> Non
             info = zipfile.ZipInfo(archive_name, date_time=(1980, 1, 1, 0, 0, 0))
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = 0o100644 << 16
-            archive.writestr(info, path.read_bytes())
+            archive.writestr(info, archive_payload(path))
 
     with zipfile.ZipFile(output) as archive:
         names = archive.namelist()

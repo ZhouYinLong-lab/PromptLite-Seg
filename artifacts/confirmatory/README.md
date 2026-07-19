@@ -4,6 +4,10 @@ This directory contains metrics and statistical summaries only. It contains no
 VOC image, semantic mask, target mask, model checkpoint, or image-bearing
 visualization.
 
+`CHECKSUMS.sha256` uses SHA-256 after CRLF-to-LF normalization for these
+text-only result files, so verification is stable across Git checkouts on
+Windows, Linux, and macOS.
+
 ## Frozen runs
 
 - CPU baselines and ablations: commit `e7cbe54a1eedff6965e500d1775ecd3e65f2ecc0`
