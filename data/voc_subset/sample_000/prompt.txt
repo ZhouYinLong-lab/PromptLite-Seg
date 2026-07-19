@@ -1,5 +1,0 @@
-source_row=0
-label=1
-class_name=aeroplane
-bbox=8,109,500,262
-point=98,170

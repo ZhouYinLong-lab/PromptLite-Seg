@@ -39,11 +39,6 @@ jobs:
           MPLBACKEND: Agg
         run: python -m pytest
 
-      - name: Run offline CPU smoke experiment
-        env:
-          MPLBACKEND: Agg
-        run: >-
-          python scripts/run_experiment.py
-          --data-dir data/voc_subset
-          --output-dir outputs_verify/ci-smoke
-          --max-samples 1
+      # The pytest suite generates a synthetic image/mask/prompt fixture and
+      # executes both the legacy visualization CLI and the data-free
+      # confirmatory CPU CLI. CI therefore never downloads or redistributes VOC.

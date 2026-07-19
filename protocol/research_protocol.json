@@ -93,12 +93,13 @@
     "artifact_sha256": "f794a025d85cd5f6e8ec44dcd0f38638ec06f0d0963becf21c9c785435bd3e8c"
   },
   "frozen_algorithm_sources": {
-    "src/promptseg/algorithms.py": "7fbc3fdd26938f88608c89511ffaaf199d1e3cc7b54a3a871997660f6356265f",
-    "src/promptseg/utils.py": "fefff391128db133d39b681a5dd929e053e01473b52c82686525e59b5ed1e29a",
+    "src/promptseg/algorithms.py": "ecca27bd3487d3ae02f06d309f32de9e2d99a6d586cef8bc8221ab9500852e17",
+    "src/promptseg/utils.py": "f1524dc374c4922454246435a42c2083ab5213e55e1732092070ad6e5587b7a0",
     "src/promptseg/prompts.py": "42803f89863557a3903bba2a1a7b71286a3aa16910516d5690d7c32e100a169f",
     "src/promptseg/sam.py": "96166ed24fba5b6ea8925dacfdb0ef033bc00dda9711fe8c2e131d250e7d343d",
     "scripts/run_confirmatory_sam.py": "34508fdf0f18cd63061dee0adb7b7d3554f50971356a47d6dfdd98eb19f374d5"
   },
+  "frozen_source_hash_canonicalization": "SHA-256 over UTF-8 bytes after CRLF-to-LF normalization",
   "reporting": {
     "required_strata": ["class_name", "target_area_quartile"],
     "required_failures": "report missing cases, runtime failures, and exclusions; no silent dropping",

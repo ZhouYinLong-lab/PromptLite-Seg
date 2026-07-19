@@ -1,5 +1,0 @@
-source_row=19
-label=6
-class_name=bus
-bbox=9,0,413,454
-point=213,224

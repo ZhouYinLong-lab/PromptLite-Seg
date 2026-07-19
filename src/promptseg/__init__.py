@@ -1,4 +1,4 @@
-"""Prompted segmentation utilities for the IntroAI course project."""
+"""Prompted segmentation and prompt-uncertainty research utilities."""
 
 from __future__ import annotations
 

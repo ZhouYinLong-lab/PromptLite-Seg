@@ -1,5 +1,0 @@
-source_row=3
-label=19
-class_name=train
-bbox=5,31,354,337
-point=198,180

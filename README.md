@@ -1,385 +1,196 @@
 # PromptLite-Seg
 
 > 面向 PASCAL VOC 2012 的轻量级零样本提示分割与提示不确定性研究
-> Lightweight Zero-Shot Prompted Segmentation on PASCAL VOC 2012
+> Lightweight Zero-Shot Prompted Segmentation and Prompt Uncertainty on PASCAL VOC 2012
 
 [![Python 3.10–3.12](https://img.shields.io/badge/Python-3.10--3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![CPU CI](https://github.com/ZhouYinLong-lab/PromptLite-Seg/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ZhouYinLong-lab/PromptLite-Seg/actions/workflows/ci.yml)
-[![Task](https://img.shields.io/badge/Task-Prompted%20Segmentation-5C6BC0)](https://github.com/facebookresearch/segment-anything)
-[![Dataset](https://img.shields.io/badge/Dataset-PASCAL%20VOC%202012-009688)](http://host.robots.ox.ac.uk/pascal/VOC/voc2012/)
-[![Model](https://img.shields.io/badge/Model-SAM%20ViT--B-111111)](https://github.com/facebookresearch/segment-anything)
-[![Reproducible](https://img.shields.io/badge/Experiment-Reproducible-success)](#复现实验)
-[![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Dataset](https://img.shields.io/badge/Evaluation-VOC%202012%20val%201449-009688)](https://www.robots.ox.ac.uk/~vgg/projects/pascal/VOC/voc2012/)
+[![Protocol](https://img.shields.io/badge/Protocol-Pre--specified-success)](protocol/research_protocol.json)
+[![License: Apache-2.0](https://img.shields.io/badge/Code%20License-Apache%202.0-blue.svg)](LICENSE)
 
-## 项目概览
+PromptLite-Seg 是南京大学 2026 春《人工智能导论》方向 7“零样本提示分割”的课程项目，现已扩展为一个具有冻结协议、完整验证集评测、强基线、组件消融和确认性统计的研究制品。项目研究如何只利用一个前景点和一个边界框获得目标掩码，并分析点提示、框提示和多候选选择在提示误差下的行为。
 
-PromptLite-Seg 是南京大学智能科学与技术2026春人工智能导论课程设计的**方向 7：零样本提示分割**项目（课程网站https://www.lamda.nju.edu.cn/guolz/IntroAI/sp2026/exam.html）。
-项目研究如何仅利用一个前景点和一个目标框，在不针对目标数据集微调模型的情况下获得物体掩码，
-并进一步分析提示形式、提示噪声和多提示选择对分割性能的影响。
+项目包含两条互补路径：完全免训练的 CPU 方法，以及使用官方 SAM ViT-B 的 CUDA 基准。所有最终结论基于 PASCAL VOC 2012 validation 的 **1,449 张图像和 20 个类别**；原有 30 样本实验仅保留为探索性历史，不再用于确认性主张。
 
-仓库包含两条互补的实验路径：一条是可在 CPU 上运行的透明轻量基线，另一条是使用 SAM ViT-B 的 GPU 研究实验。
-除平均 IoU/Dice 外，项目还提供逐样本结果、类别分析、成功/失败案例、提示扰动实验、
-配对 Bootstrap 置信区间与符号翻转置换检验。
+## 创新点与研究贡献
 
-## 创新点
+1. **代表性、不可事后调参的评测协议。** VOC train 中固定抽取每类 5 个目标作为 100 样本调参集，VOC validation 的全部 1,449 行作为确认集；清单、数据源、算法文件与随机协议均由 SHA-256 固定。
+2. **按可观测提示质量校准点噪声与框噪声。** 点扰动以目标命中率衡量，框扰动以相对紧框 IoU 衡量；两者先在调参集上独立校准到相同的 0.85/0.65 质量目标，再在确认集上检验，从而避免比较任意且不等强的扰动尺度。
+3. **预设假设与多重检验控制。** 在查看完整确认结果前固定 H1–H3、主要指标和方向，先按样本聚合重复试验，再使用配对 Bootstrap、sign-flip permutation test 和 Holm 家族错误率校正。
+4. **透明轻量方法的强基线与逐组件审计。** 除 Center Color 外加入 GrabCut 和 SAM 三种提示模态，并分别移除颜色种子、空间先验和多框共识。消融显示哪些组件真正贡献性能，也诚实暴露多框共识在完整验证集上几乎没有平均收益。
 
-相对于只报告理想提示下单一分割分数的常规课程实现，本项目主要包含以下创新与特色：
+这些贡献主要体现在实验设计、可复核证据链和负结果披露；项目不宣称 SLIC、GrabCut、SAM 或各组成技术本身首次提出。
 
-1. **面向低算力场景的多尺度共识分割。** 项目设计了无需训练的 `robust_superpixel` 方法，
-   将 SLIC 超像素、Lab 颜色与空间特征、提示诱导的前景/背景原型及边界框约束统一起来，
-   并在收缩、原始和扩张框上进行多尺度预测与多数共识，在 CPU 可复现的前提下提升对单一框位置的容错能力。
-2. **把提示误差拆解为可分析的不确定性来源。** 实验不只比较点提示和框提示，
-   还分别扰动点、框以及点 + 框，构建提示模态、噪声来源和噪声强度三个维度的评测，
-   从而发现当前设置下 SAM ViT-B 的性能主要受框质量支配，而不是笼统地把所有提示误差视为等价。
-3. **用多候选选择和配对统计检验连接性能与可靠性。** 项目比较模型分数选择、一致性 medoid、
-   投票共识和 oracle best-of-six，并结合样本级 Bootstrap 置信区间与 sign-flip permutation test，
-   区分“均值看似提升”和“证据足以支持提升”，同时量化仍可被提示质量估计器恢复的性能空间。
+## 确认性结果
 
-以上内容是本项目在方法组合、实验设计和证据链上的主要贡献，不宣称各组成技术本身属于文献中的首次提出。
+冻结协议、逐样本指标和统计摘要位于 [`artifacts/confirmatory/`](artifacts/confirmatory/README.md)。所有制品均为 CSV/JSON/Markdown，不包含 VOC 图像、掩码或模型权重。
 
-## 目录
+### CPU 方法与消融
 
-- [项目概览](#项目概览)
-- [创新点](#创新点)
-- [研究问题](#研究问题)
-- [方法概览](#方法概览)
-- [核心结果](#核心结果)
-- [复现实验](#复现实验)
-- [数据与提示构造](#数据与提示构造)
-- [输出文件](#输出文件)
-- [项目结构](#项目结构)
-- [局限性](#局限性)
-- [技术报告与引用](#技术报告与引用)
+| 方法 | Mean IoU | Mean Dice | Median latency | 失败数 |
+| --- | ---: | ---: | ---: | ---: |
+| Center Color | 0.5417 | 0.6768 | 13.4 ms | 0 |
+| GrabCut（点 + 框） | **0.6878** | **0.7782** | 416.8 ms | 8/1449 |
+| Robust Superpixel | 0.6049 | 0.7351 | 204.2 ms | 0 |
+| └ 无颜色种子 | 0.4645 | 0.5989 | 189.6 ms | 0 |
+| └ 无空间先验 | 0.5838 | 0.7162 | 205.0 ms | 0 |
+| └ 单框、无多框共识 | 0.6049 | 0.7351 | 193.4 ms | 0 |
 
-## 研究问题
-
-本项目围绕四个问题展开：
-
-1. 只依赖点和框提示的轻量、免训练方法，在真实图像上可以达到怎样的分割效果？
-2. 超像素、前景/背景原型和多框共识能否稳定改进简单颜色阈值基线？
-3. SAM 对点提示与框提示的依赖是否相同？哪一类提示噪声影响更大？
-4. 对同一含噪提示生成多个候选，能否通过模型分数或候选一致性找回性能？
-
-这里的“零样本”指模型或算法**不在本项目的 PASCAL VOC 子集上训练或微调**。SAM 本身仍是预训练基础模型；`center_color` 和 `robust_superpixel` 则完全不需要学习参数。
-
-## 方法概览
-
-```mermaid
-flowchart LR
-    A["VOC 图像与语义掩码"] --> B["选取最大前景连通域"]
-    B --> C["构造内部点与紧致边界框"]
-    C --> D1["Center Color"]
-    C --> D2["Robust Superpixel"]
-    C --> D3["SAM ViT-B"]
-    D1 --> E["IoU / Dice"]
-    D2 --> E
-    D3 --> E
-    C --> F["提示扰动与多提示采样"]
-    F --> D2
-    F --> D3
-    E --> G["配对统计检验与案例分析"]
-```
-
-### 1. Center Color 基线
-
-在提示点附近提取 RGB 中值作为前景原型，在边界框内使用自适应 Otsu 阈值筛选颜色相近的像素，再通过形态学处理和连通域选择得到最终掩码。该方法计算量小，但容易受到物体多色外观和相似背景干扰。
-
-### 2. Robust Superpixel
-
-轻量主方法首先用 SLIC 将图像划分为超像素，并使用 Lab 颜色与空间位置构造特征；随后从点提示和框边界估计前景/背景原型。算法分别在收缩、原始和扩张后的三个框上预测，通过多数共识融合结果，最后与颜色基线合并并清理小连通域。
-
-### 3. SAM ViT-B
-
-使用官方 Segment Anything ViT-B 检查点比较 `point_only`、`box_only` 和 `point_box` 三种提示形式。
-SAM 实验还分别扰动点与框，并比较单次含噪提示、模型分数选择、一致性 medoid、投票共识和 oracle 最优候选。
-
-### 4. 统计可靠性
-
-统计脚本基于逐样本配对差值计算 95% Bootstrap 置信区间，并使用配对 sign-flip permutation test 检验差异。存在多次扰动试验时，先在同一样本内部聚合，再进行样本级比较，避免把重复试验误当成独立样本。
-
-## 核心结果
-
-实验使用固定的 30 个 PASCAL VOC 2012 验证集样本。完整数值保存在 `outputs/`，以下结果直接取自仓库中已提交的实验产物。
-
-### 轻量方法与 SAM
-
-| 方法 | 运行条件 | Mean IoU | Mean Dice |
-| --- | --- | ---: | ---: |
-| Center Color | CPU，免训练 | 0.5468 | 0.6754 |
-| Robust Superpixel | CPU，免训练 | **0.6031** | **0.7277** |
-| SAM ViT-B（点 + 框） | CUDA，预训练模型 | **0.8325** | **0.9002** |
-
-Robust Superpixel 相比 Center Color 的平均 IoU 提升 `+0.0562`，95% CI 为 `[0.0301, 0.0891]`，配对置换检验 `p = 0.00002`。
-
-![轻量方法指标对比](outputs/figures/metric_summary.png)
+GrabCut 的 8 次初始化失败按 IoU/Dice=0 计入总体均值，没有从结果中删除。消融表明颜色种子贡献最大，空间先验有稳定正贡献；多框共识的平均增益接近零，因此不再把它表述为已证实的主要优势。
 
 ### SAM 提示模态
 
-| 提示形式 | Mean IoU | Mean Dice |
+| SAM ViT-B 提示 | Mean IoU | Mean Dice |
 | --- | ---: | ---: |
-| 仅点提示 | 0.4430 | 0.5303 |
-| 点 + 框 | 0.8325 | 0.9002 |
-| 仅框提示 | **0.8565** | **0.9150** |
+| 仅点 | 0.5346 | 0.6198 |
+| 仅框 | 0.8469 | 0.9051 |
+| 点 + 框 | **0.8476** | **0.9076** |
 
-在当前受控子集上，SAM 呈现明显的 **框主导（box-dominated）** 特征。仅框提示相对点 + 框提升 `+0.0240 IoU`，95% CI 为 `[0.0080, 0.0421]`，`p = 0.00922`。
+### 三个预设主假设
 
-![SAM 提示模态对比](outputs/prompt_uncertainty/prompt_modality.png)
+| 假设 | 配对 Mean IoU 差值 | 95% CI | Holm-adjusted p | 结论 |
+| --- | ---: | ---: | ---: | --- |
+| H1：Robust Superpixel > Center Color | +0.0632 | [0.0578, 0.0686] | 0.000060 | 支持 |
+| H2：SAM 分数选择 > 单次含噪提示 | +0.0204 | [0.0145, 0.0261] | 0.000060 | 支持 |
+| H3：匹配质量后框噪声损失 > 点噪声损失 | +0.1067 | [0.0996, 0.1138] | 0.000060 | 支持 |
 
-### 提示噪声分解
+确认集上的中等点噪声命中率为 **0.6391**，中等框噪声平均 IoU 为 **0.6514**，与预设 0.65 目标接近。H3 的正差值表示点噪声下 IoU 高于框噪声下 IoU，即在近似匹配提示质量后，SAM 仍对框定位误差更敏感。
 
-| 条件 | Mean IoU | 相对干净提示 |
-| --- | ---: | ---: |
-| 干净点 + 框 | 0.8325 | — |
-| 中等点噪声 | 0.8507 | +0.0182 |
-| 中等框噪声 | 0.6462 | -0.1863 |
-| 中等点 + 框噪声 | 0.6385 | -0.1940 |
+Oracle 多候选结果只作为候选集合的描述性上界，不参与可部署方法主张或 H1–H3 检验。
 
-框噪声相对点噪声下降 `-0.2044 IoU`，95% CI 为 `[-0.2655, -0.1474]`。中等点噪声在该小样本实验中略高于干净提示，这一现象只应理解为当前提示构造和随机扰动设置下的结果，而非普遍规律。
+## 方法
 
-![点噪声与框噪声分解](outputs/prompt_uncertainty/noise_decomposition.png)
+### Center Color
 
-### 多提示选择
+在提示点附近估计 RGB 前景原型，在框内自适应阈值分割并进行连通域与形态学清理。它速度快，但容易受物体多色外观和相似背景影响。
 
-在中等点 + 框噪声下，单次含噪提示的 Mean IoU 为 `0.6385`，模型分数选择提高到 `0.6796`，
-oracle best-of-six 可达到 `0.7401`。但分数选择的提升区间跨过 0
-（95% CI `[-0.0044, 0.1029]`，`p = 0.15418`），因此目前只能视为有潜力，尚不能声称获得统计显著改进。
+### Robust Superpixel
 
-![多提示不确定性实验](outputs/prompt_uncertainty/uncertainty_ensemble.png)
+使用 SLIC 超像素、Lab 颜色与空间特征建立前景/背景原型，将颜色种子和超像素预测融合，再保留与提示点关联的连通域。实现提供显式组件开关，使颜色种子、空间先验和框共识可以独立消融。
 
-更多逐类别结果、最佳提升样本与困难样本见
-[`outputs/analysis/success_failure.md`](outputs/analysis/success_failure.md)。完整论证见[技术报告](reports/report.md)。
+### GrabCut
 
-## 复现实验
+使用边界框初始化 probable foreground、框外初始化 background，并以点邻域提供 sure foreground。该经典强基线显著超过自研轻量方法，但耗时更长，并在 8 个极端初始化案例上失败。
 
-### 环境要求
+### SAM ViT-B
 
-- Python 3.10、3.11 或 3.12
-- `scikit-image==0.25.2`；固定该版本以同时覆盖 Python 3.10–3.12，并保持形态学清理语义一致
-- CPU 路径：Windows、Linux 或 macOS 均可运行各个 Python 脚本
-- 一键脚本：PowerShell 5.1 或 PowerShell 7+
-- SAM 路径：建议使用支持 CUDA 的 NVIDIA GPU；需单独安装匹配本机 CUDA 环境的 PyTorch
-- 下载数据和 SAM 检查点时需要网络连接
+使用官方 Segment Anything ViT-B，比较 point-only、box-only 和 point+box。提示不确定性实验对点、框分别施加校准噪声，并比较单提示、模型分数选择、一致性 medoid、投票共识和 Oracle 上界。
 
-### 克隆仓库
+## 冻结实验协议
+
+- 起始基线：`e464cf5359e7325ca4af3401d089c73a966de7dc`
+- 调参集：VOC 2012 train，20 类 × 5 个目标，共 100 个
+- 确认集：VOC 2012 validation 全部 1,449 行
+- 主要指标：样本级宏平均 IoU；Dice、耗时和内存为次要指标
+- 主检验：20,000 次配对 Bootstrap；50,000 次 sign-flip permutation
+- 多重校正：H1–H3 使用 Holm step-down
+- SAM：ViT-B、每样本 5 次噪声 trial、5 个额外候选
+- 失败策略：明确记录；算法运行失败按 0 分计入总体指标
+- Oracle 策略：仅作描述性上界
+
+完整机器可读协议见 [`protocol/research_protocol.json`](protocol/research_protocol.json)，数据清单及哈希见 [`protocol/manifests/`](protocol/manifests/)。
+
+## 从干净环境复现
+
+### 1. CPU 环境
+
+要求 Python 3.10、3.11 或 3.12。
 
 ```bash
-git clone https://github.com/ZhouYinLong-lab/PromptLite-Seg.git
-cd PromptLite-Seg
-```
-
-### 路径 A：CPU 轻量复现
-
-PowerShell 一键运行：
-
-```powershell
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-.\scripts\run_all.ps1 -Count 30
-```
-
-`run_all.ps1` 会安装轻量依赖、下载/复用 VOC 验证集缓存、运行两种 CPU 方法，并生成类别和成功/失败分析。如果数据已经位于 `data/voc_subset/`，可跳过下载：
-
-```powershell
-.\scripts\run_all.ps1 -Count 30 -SkipDownload
-```
-
-如需使用指定解释器并避免覆盖正式输出，可传入 `-PythonExecutable` 与 `-CpuOutputDir`：
-
-```powershell
-.\scripts\run_all.ps1 `
-  -Count 30 `
-  -SkipDownload `
-  -PythonExecutable ".\.venv\Scripts\python.exe" `
-  -CpuOutputDir "outputs_verify\cpu-30"
-```
-
-也可以逐步运行，便于定位问题：
-
-```powershell
-python -m pip install -r requirements.txt
-python scripts/download_voc_subset.py --count 30
-python scripts/run_experiment.py --data-dir data/voc_subset --output-dir outputs --max-samples 30
-python scripts/analyze_results.py --metrics outputs/metrics.csv --output-dir outputs/analysis
-```
-
-### 测试与质量保证
-
-开发或复现实验前可安装项目及测试依赖：
-
-```bash
+# Windows: .venv\Scripts\activate
+# Linux/macOS: source .venv/bin/activate
+python -m pip install --upgrade pip
 python -m pip install -e ".[test]"
-```
-
-依次执行语法编译检查和完整测试：
-
-```bash
 python -m compileall -q src scripts tests
 python -m pytest
 ```
 
-不访问网络、不使用 GPU 的单样本 CPU smoke test：
+### 2. 下载并验证数据源
+
+下载脚本会拒绝任何与冻结 SHA-256 不一致的数据文件。
 
 ```bash
-python scripts/run_experiment.py \
-  --data-dir data/voc_subset \
-  --output-dir outputs_verify/cpu-smoke \
-  --max-samples 1
+python scripts/fetch_protocol_assets.py
+python scripts/prepare_voc_from_manifest.py \
+  --manifest protocol/manifests/tuning_train.jsonl \
+  --parquet data/cache/pascal_voc_2012_train.parquet \
+  --output-dir data/voc_tuning
+python scripts/prepare_voc_from_manifest.py \
+  --manifest protocol/manifests/confirmatory_validation.jsonl \
+  --parquet data/cache/pascal_voc_2012_val.parquet \
+  --output-dir data/voc_validation
 ```
 
-GitHub Actions 会在 Python 3.10、3.11、3.12 上安装相同的 CPU 依赖，执行
-`compileall`、全部 pytest 和上述离线 smoke experiment。任一步失败都会使 CI 失败；CI 不下载
-SAM checkpoint 或完整 VOC 数据。
+### 3. CPU 确认性实验
 
-### 路径 B：SAM 与提示不确定性实验
-
-建议为 SAM 单独创建环境。下面以 Windows PowerShell 和 CUDA 12.8 wheel 为例；如果本机 CUDA 环境不同，
-请先在 [PyTorch 官方安装页](https://pytorch.org/get-started/locally/) 选择匹配的命令。
-
-```powershell
-python -m venv .venv-sam
-.\.venv-sam\Scripts\python.exe -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
-.\.venv-sam\Scripts\python.exe -m pip install -r requirements-sam.txt
-New-Item -ItemType Directory -Force checkpoints | Out-Null
-Invoke-WebRequest `
-  -Uri "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth" `
-  -OutFile "checkpoints/sam_vit_b_01ec64.pth"
+```bash
+python scripts/calibrate_prompt_noise.py
+python scripts/run_confirmatory_cpu.py --workers 8
 ```
 
-运行完整 GPU 实验：
+### 4. SAM CUDA 实验
 
-```powershell
-.\scripts\run_all.ps1 `
-  -Count 30 `
-  -SkipDownload `
-  -IncludeSam `
-  -IncludePromptUncertainty `
-  -SamPython ".\.venv-sam\Scripts\python.exe" `
-  -Device cuda `
-  -Trials 2 `
-  -EnsembleSize 5
+先按照 [PyTorch 官方安装器](https://pytorch.org/get-started/locally/) 安装与 GPU 匹配的 CUDA wheel，再安装冻结的官方 SAM 源码。不要安装 PyPI 上来源不明确的同名包。
+
+```bash
+python -m pip install -r requirements-sam.txt
+python scripts/fetch_protocol_assets.py --include-sam
+python scripts/run_confirmatory_sam.py --device cuda
+python scripts/analyze_confirmatory.py
 ```
 
-若只想执行某一部分：
-
-```powershell
-.\.venv-sam\Scripts\python.exe scripts/run_sam_experiment.py --max-samples 30 --device cuda
-.\.venv-sam\Scripts\python.exe scripts/run_robustness_experiment.py `
-  --max-samples 30 --trials 2 --include-sam --device cuda
-.\.venv-sam\Scripts\python.exe scripts/run_prompt_uncertainty_experiment.py `
-  --max-samples 30 --trials 2 --ensemble-size 5 --device cuda
-python scripts/analyze_statistics.py
-```
-
-> SAM ViT-B 检查点约数百 MB，且 `checkpoints/` 已被 `.gitignore` 排除，不会提交到仓库。
-
-### 可复现性约定
-
-- 数据下载脚本固定从 PASCAL VOC 2012 validation parquet 中按行选择样本。
-- 每个样本保留原始来源行号、类别、点坐标和边界框。
-- 提示扰动使用稳定的样本级随机种子；相同数据与参数下可重复生成相同扰动。
-- 仓库保留逐样本 CSV，而不仅是汇总均值，便于复核和重新统计。
-- 默认 CPU 路径与耗时更长的 SAM 路径明确分离。
-
-## 数据与提示构造
-
-每个样本目录包含：
-
-```text
-data/voc_subset/sample_000/
-├── image.jpg          # RGB 原图
-├── semantic_mask.png  # VOC 语义标签图
-├── target_mask.png    # 最大前景连通域的二值真值
-└── prompt.txt         # 来源行、类别、bbox 与内部点
-```
-
-数据准备脚本在每张验证图像中枚举 VOC 的 20 个前景类别，选择面积最大的连通域作为目标。边界框为目标的紧致外接框，点提示为目标内部距离变换值最大的像素，从而尽量远离物体边界。
-
-## 输出文件
-
-| 路径 | 内容 |
-| --- | --- |
-| `outputs/metrics.csv` | CPU 方法的逐样本 IoU、Dice 与像素统计 |
-| `outputs/summary.json` | CPU 方法汇总指标 |
-| `outputs/figures/` | CPU 方法定性结果与指标图 |
-| `outputs/analysis/` | 逐类别、成功/失败与分布分析 |
-| `outputs/sam/` | SAM 点 + 框结果及三方法对比 |
-| `outputs/robustness/` | clean / mild / moderate 提示扰动结果 |
-| `outputs/prompt_uncertainty/` | 提示模态、噪声分解与多提示选择结果 |
-| `outputs/statistics/` | Bootstrap CI、置换检验和效应图 |
-| `reports/report.md` | 完整英文技术报告 |
-| `reports/report.pdf` | 排版后的 PDF 报告 |
+本次验证环境为 Python 3.10、PyTorch 2.11.0+cu128、RTX 5070 Ti；完整 SAM 运行耗时 675 秒，峰值 CUDA allocated memory 约 2.77 GB。不同硬件的耗时与显存可能不同，但指标应由相同清单、提示和检查点确定。
 
 ## 项目结构
 
 ```text
 PromptLite-Seg/
-├── data/voc_subset/               # 30 个可复现实验样本
-├── outputs/                       # 指标、图表和统计结果
-│   ├── analysis/                  # 类别与案例分析
-│   ├── prompt_uncertainty/        # 模态、噪声与多提示实验
-│   ├── robustness/                # 提示鲁棒性实验
-│   ├── sam/                       # SAM 对比结果
-│   └── statistics/                # 配对统计检验
-├── reports/                       # Markdown、LaTeX 与 PDF 报告
-├── scripts/                       # 数据、实验和分析入口
+├── artifacts/confirmatory/       # 无图像的逐样本指标、统计与校验和
+├── protocol/                     # 冻结协议、调参/确认清单、噪声校准
+├── reports/                      # 技术报告与匿名投稿稿件
+├── scripts/                      # 资产验证、实验、统计和制品入口
 ├── src/promptseg/
-│   ├── algorithms.py              # Center Color 与 Robust Superpixel
-│   ├── dataset.py                 # 数据与 Prompt 读取
-│   ├── metrics.py                 # IoU / Dice
-│   ├── utils.py                   # 随机种子、框裁剪和 CSV 工具
-│   └── visualize.py               # 定性结果和汇总图
-├── requirements.txt               # CPU 路径依赖
-├── requirements-sam.txt           # SAM 路径额外依赖
-└── README.md
+│   ├── algorithms.py             # CPU 基线、GrabCut、主方法与消融
+│   ├── dataset.py                # 本地数据读取
+│   ├── prompts.py                # 校准扰动、质量指标和候选选择
+│   ├── sam.py                    # 可 mock 的 SAM predictor contract
+│   └── voc.py                    # VOC 解码、目标构造与哈希工具
+├── tests/                        # CPU、SAM mock、协议与 CLI 测试
+├── RESEARCH_PLAN.md              # 持久化研究升级计划
+├── THIRD_PARTY_NOTICES.md        # 数据、模型与依赖许可边界
+└── LICENSE                       # 仅覆盖原创代码与文档
 ```
+
+## 数据、隐私与许可证
+
+仓库不再跟踪 VOC 原图、语义掩码、目标掩码、含原图可视化或 SAM checkpoint。用户必须自行取得第三方资产并遵守原始条款；详细边界和固定哈希见 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。
+
+原创代码和文档采用 [Apache License 2.0](LICENSE)。该许可证不覆盖 PASCAL VOC、Flickr 图片、Meta SAM 权重或第三方依赖。
+
+历史提交曾包含 30 张 VOC 样本，因此当前私有开发分支不能直接切换为公开仓库。公开发布应使用不继承旧历史的 clean-history 分支或独立仓库，并在发布前执行资产扫描。
 
 ## 局限性
 
-- 当前结论基于 30 个验证样本，适合课程项目和方法验证，不能替代完整 VOC validation 或跨数据集评测。
-- 点和框由真值掩码自动生成，扰动分布只是对人工标注误差的近似。
-- SAM 结论来自 ViT-B 检查点；ViT-L、ViT-H、SAM 2 或其他提示式模型可能表现不同。
-- 当前多提示选择器尚未取得统计显著的稳定提升；oracle 结果只说明候选集合中存在可恢复空间。
-- Robust Superpixel 对细长结构、复杂内部纹理以及框内多个相似目标仍较敏感。
+- 点和框仍由真值掩码自动构造；校准使两种噪声在可观测质量上接近，但不等同于真实人类交互分布。
+- 研究只覆盖 VOC 2012 和 SAM ViT-B；跨数据集、SAM 2、ViT-L/H 或真实用户提示尚未验证。
+- GrabCut 的较高总体性能说明自研轻量方法不是当前最强方法；其价值主要在透明组件分析和较低延迟。
+- 多框共识在完整验证集上没有平均收益，是应保留的负结果。
+- SAM 分数选择的平均提升虽经确认，但幅度为 +0.0204 IoU，实际价值仍需结合额外推理成本评估。
 
-因此，“框提示比点提示更重要”应理解为**当前数据子集、提示生成方式与 SAM ViT-B 设置下的实证结论**，不应直接外推为所有交互分割场景的普遍规律。
+## 报告、匿名投稿与引用
 
-## 技术报告与引用
+课程报告位于 [`reports/report.pdf`](reports/report.pdf)，双盲稿为 [`reports/report_anonymous.pdf`](reports/report_anonymous.pdf)。面向双盲 OpenReview 会场时，不得直接提交当前具名仓库链接；请生成经过身份、资产与路径审计的补充包：
 
-- [Markdown 技术报告](reports/report.md)
-- [LaTeX 源文件](reports/report.tex)
-- [PDF 技术报告](reports/report.pdf)
-- [统计可靠性说明](outputs/statistics/statistical_reliability.md)
-
-如果需要在课程展示中简要介绍本项目，可使用：
-
-> PromptLite-Seg 研究零样本提示式图像分割，比较轻量免训练算法与 SAM ViT-B，并重点分析点提示、框提示及提示噪声对分割性能和鲁棒性的影响。
-
-推荐引用格式：
-
-```text
-ZhouYinLong-lab. PromptLite-Seg: Lightweight Zero-Shot Prompted Segmentation
-on PASCAL VOC 2012. GitHub, 2026.
-https://github.com/ZhouYinLong-lab/PromptLite-Seg
+```bash
+python scripts/export_anonymous_artifact.py
 ```
 
-## 致谢
+默认产物为 `dist/promptlite-seg-anonymous.zip`。OpenReview 是投稿平台，具体匿名和代码政策仍以目标 venue 当年规则为准。
 
-本项目使用或参考了以下公开工作：
+项目引用信息将在正式公开版本和论文题目冻结后给出。当前研究制品如需内部引用，可使用仓库提交与确认性制品校验和定位。
 
-- [PASCAL VOC 2012](http://host.robots.ox.ac.uk/pascal/VOC/voc2012/)：图像分割评测数据集
-- [Segment Anything](https://github.com/facebookresearch/segment-anything)：通用可提示分割模型
-- [scikit-image](https://scikit-image.org/)：SLIC、颜色空间、阈值与形态学工具
-- [NumPy](https://numpy.org/)、[SciPy](https://scipy.org/)、[Matplotlib](https://matplotlib.org/)：数值计算、统计与可视化
+## 贡献与问题反馈
 
-## 问题反馈
-
-如发现复现问题、文档错误或有改进建议，请在
-[GitHub Issues](https://github.com/ZhouYinLong-lab/PromptLite-Seg/issues) 中提交，
-并附上运行命令、Python/PyTorch 版本、设备信息和完整错误输出。
-
-## 许可证
-
-本项目原创代码采用 [Apache License 2.0](LICENSE)。该许可证允许使用、复制、修改和再分发代码，
-提供明确的版权与专利授权，同时要求保留许可证、版权、专利与归属声明，并标注修改过的文件。
-
-Apache-2.0 只覆盖本仓库原创代码；PASCAL VOC 数据、SAM 代码和模型权重仍分别遵循其原始许可与使用条款。
+贡献前请阅读 [`CONTRIBUTING.md`](CONTRIBUTING.md)，安全问题请按 [`SECURITY.md`](SECURITY.md) 私下报告。普通复现问题可提交 GitHub Issue，并附上命令、Python/PyTorch 版本、设备信息和完整错误输出。

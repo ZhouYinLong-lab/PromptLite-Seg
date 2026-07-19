@@ -1,5 +1,0 @@
-source_row=27
-label=4
-class_name=boat
-bbox=262,66,363,157
-point=290,146

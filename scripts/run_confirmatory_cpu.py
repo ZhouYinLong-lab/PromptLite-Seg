@@ -128,13 +128,17 @@ def run_method(
     elapsed = perf_counter() - start
     valid = [row for row in rows if row["status"] == "ok"]
     latencies = [float(row["latency_ms"]) for row in valid]
+    success_iou = [float(row["iou"]) for row in valid]
+    success_dice = [float(row["dice"]) for row in valid]
     summary = {
         "method": method_name,
         "num_samples": len(rows),
         "num_success": len(valid),
         "num_failures": len(rows) - len(valid),
-        "mean_iou": statistics.fmean(float(row["iou"]) for row in valid) if valid else None,
-        "mean_dice": statistics.fmean(float(row["dice"]) for row in valid) if valid else None,
+        "mean_iou_success_only": statistics.fmean(success_iou) if valid else None,
+        "mean_dice_success_only": statistics.fmean(success_dice) if valid else None,
+        "mean_iou_failure_zero": sum(success_iou) / len(rows) if rows else None,
+        "mean_dice_failure_zero": sum(success_dice) / len(rows) if rows else None,
         "median_latency_ms": statistics.median(latencies) if latencies else None,
         "p95_latency_ms": percentile(latencies, 0.95) if latencies else None,
         "total_seconds": elapsed,

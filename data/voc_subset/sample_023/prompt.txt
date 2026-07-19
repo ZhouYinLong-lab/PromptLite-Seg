@@ -1,5 +1,0 @@
-source_row=23
-label=13
-class_name=horse
-bbox=113,109,436,332
-point=221,213

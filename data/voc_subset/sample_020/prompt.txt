@@ -1,5 +1,0 @@
-source_row=20
-label=17
-class_name=sheep
-bbox=65,97,469,269
-point=360,174

@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 from promptseg.utils import SEVERITIES
+from scripts.fetch_protocol_assets import fetch_and_verify
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -12,6 +13,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def canonical_source_sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 
 
 def read_jsonl(path: Path) -> list[dict]:
@@ -33,8 +38,9 @@ def test_frozen_protocol_matches_manifests_and_algorithm_sources() -> None:
         assert len(rows) == split["samples"]
         assert sha256(manifest_path) == split["manifest_sha256"]
 
+    assert "CRLF-to-LF" in protocol["frozen_source_hash_canonicalization"]
     for relative_path, expected_hash in protocol["frozen_algorithm_sources"].items():
-        assert sha256(ROOT / relative_path) == expected_hash
+        assert canonical_source_sha256(ROOT / relative_path) == expected_hash
 
     calibration = protocol["noise_calibration"]
     calibration_path = ROOT / calibration["artifact"]
@@ -77,3 +83,15 @@ def test_manifest_contains_no_image_or_mask_payloads() -> None:
         assert '"bytes"' not in text
         assert '"image"' not in text
         assert '"mask"' not in text
+
+
+def test_asset_fetch_rejects_existing_file_with_wrong_hash(tmp_path: Path) -> None:
+    asset = tmp_path / "asset.bin"
+    asset.write_bytes(b"wrong")
+
+    try:
+        fetch_and_verify("https://example.invalid/unused", asset, "0" * 64)
+    except RuntimeError as error:
+        assert "SHA-256 mismatch" in str(error)
+    else:
+        raise AssertionError("source drift was accepted")

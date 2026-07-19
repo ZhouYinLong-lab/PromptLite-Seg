@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "promptlite-seg"
 version = "0.1.0"
-description = "Training-free prompted segmentation experiments for the IntroAI course project"
+description = "Training-free prompted segmentation and calibrated prompt-uncertainty experiments"
 readme = "README.md"
 requires-python = ">=3.10,<3.13"
 dependencies = [

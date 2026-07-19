@@ -1,5 +1,0 @@
-source_row=10
-label=18
-class_name=sofa
-bbox=50,124,293,335
-point=156,264

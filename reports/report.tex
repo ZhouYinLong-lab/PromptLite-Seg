@@ -1,295 +1,175 @@
-\documentclass[11pt]{article}
-
-\usepackage[margin=1in]{geometry}
-\usepackage{graphicx}
-\usepackage{hyperref}
-\usepackage{amsmath}
+\documentclass[10pt]{article}
+\usepackage[margin=0.78in]{geometry}
+\usepackage{booktabs}
 \usepackage{array}
-\usepackage{caption}
-\usepackage{subcaption}
+\usepackage{microtype}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue,citecolor=blue}
 
-\title{\textbf{PromptLite-Seg: Lightweight Zero-Shot Prompted Segmentation on PASCAL VOC 2012}}
-\author{ZhouYinLong-lab}
-\date{\today}
+\title{Calibrated Prompt Uncertainty in Zero-Shot Segmentation:\\
+Full-Validation Evidence from Lightweight Methods and SAM}
+\ifdefined\anonymoussubmission
+  \author{Anonymous Authors}
+\else
+  \author{ZhouYinLong-lab}
+\fi
+\date{2026}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-PromptLite-Seg studies zero-shot prompted segmentation on PASCAL VOC 2012. Given a weak prompt consisting of a center point and a bounding box, the goal is to segment the target object without training on the benchmark. The project implements a simple center-color baseline, a stronger SAM-free robust superpixel method, and a GPU SAM ViT-B comparison. It further introduces prompt-robustness, prompt-uncertainty, and paired statistical reliability analyses. On a 30-sample VOC 2012 subset, clean SAM ViT-B reaches 0.8325 mean IoU with point+box prompts, while box-only prompts surprisingly reach 0.8565. The paired bootstrap confidence interval for this box-only gain is [0.0080, 0.0421]. Under moderate prompt noise, box perturbation drops SAM to 0.6462 IoU, but point perturbation remains at 0.8507. This shows that prompt quality is not a single scalar: the bounding box is the dominant information channel in this benchmark.
+Promptable segmentation systems are often evaluated with clean points and boxes, although real prompts are uncertain and the two channels do not admit directly comparable perturbation scales. We present a pre-specified evaluation on all 1,449 PASCAL VOC 2012 validation images. A disjoint, class-balanced 100-image subset of VOC train is used only to calibrate point displacement and box perturbation to matched observable quality targets: point hit rate and box IoU. We compare Center Color, GrabCut, a transparent robust-superpixel method, three component ablations, and SAM ViT-B. Three primary hypotheses are tested with paired bootstrap intervals, sign-flip tests, and Holm correction. Robust Superpixel improves over Center Color by 0.0632 IoU (95\% CI [0.0578, 0.0686]); SAM score selection improves over a single noisy prompt by 0.0204 [0.0145, 0.0261]; and matched-quality point-noise IoU exceeds box-noise IoU by 0.1067 [0.0996, 0.1138]. All effects survive Holm correction. Strong baselines and ablations qualify the contribution: GrabCut is stronger than the proposed lightweight method, the color seed and spatial prior are useful, and multi-box consensus has essentially zero average benefit. The result is a reproducible account of prompt-channel failure and evidence strength rather than a state-of-the-art claim.
 \end{abstract}
 
 \section{Introduction}
 
-Prompted segmentation has become a practical interface for general-purpose vision systems. Classic interactive systems such as GrabCut showed that a loose user box can provide enough foreground and background evidence for object extraction \cite{grabcut}. Later deep interactive methods studied stronger point-based guidance, including extreme-point prompts in DEXTR \cite{dextr}, iterative click correction with mask guidance \cite{ritm}, and click encoding with vision transformers in SimpleClick \cite{simpleclick}. More recently, the Segment Anything Model (SAM) demonstrated a general promptable segmentation interface that accepts points and boxes and transfers zero-shot to new tasks \cite{sam}. This project therefore asks a complementary question: how far can a transparent, training-free prompted segmentation algorithm go on real benchmark images, and how sensitive is SAM to the structure of its prompts?
+Interactive segmentation converts sparse user input into an object mask. Extreme points, iterative clicks, boxes, and foundation-model prompts have progressively reduced the inference-time supervision requirement \cite{dextr,ritm,simpleclick,sam}. Segment Anything (SAM) established a general point-and-box interface with strong zero-shot transfer \cite{sam}.
 
-The task follows the course-design direction of zero-shot prompt segmentation. The benchmark is PASCAL VOC 2012, a standard object recognition and segmentation benchmark with semantic labels and evaluation protocols \cite{voc}. For each selected validation sample, the largest semantic object component is converted into a binary target mask. The prompt consists of a tight bounding box and an interior center point derived from the distance transform of the target mask.
+Prompt quality is nevertheless structured. A displaced point may remain inside an object, whereas a shifted box changes localization and spatial support. Equal numeric noise scales do not imply equal prompt difficulty. Prior work compares boxes, centroids, and random points for SAM \cite{gaus}, adapts with perturbed prompts \cite{ppsam}, estimates SAM uncertainty \cite{uncertainsam}, and measures the gap between simulated and human interactions \cite{benenson}. We therefore measure the realized quality of each channel instead of assuming equal perturbation strength.
 
-\section{Method}
+This study asks three confirmatory questions: whether a transparent robust-superpixel pipeline improves over a minimal color method; whether SAM's score selects better candidates than a single noisy prompt; and whether SAM remains more sensitive to box noise after point and box quality are approximately matched. The contributions are a hash-pinned train/validation protocol, observable-quality calibration, pre-specified paired inference with family-wise correction, strong CPU and SAM baselines, component ablations, and a data-free metric artifact.
 
-\subsection{Prompt Generation}
+\section{Related Work}
 
-PASCAL VOC semantic masks provide foreground labels from 1 to 20 and background label 0. For each sample, PromptLite-Seg selects the largest connected foreground component as the target instance. The bounding box is the tight rectangle around this component. The point prompt is the pixel with maximum distance-transform value inside the component, which approximates a stable human center click.
+\paragraph{Interactive segmentation.}
+GrabCut combines graph cuts and iterative appearance models \cite{grabcut}. DEXTR conditions segmentation on extreme points \cite{dextr}; RITM and SimpleClick improve iterative click-based segmentation across datasets \cite{ritm,simpleclick}. Human studies show that simulated interactions do not automatically reproduce annotation behavior \cite{benenson}.
 
-\subsection{Center-Color Baseline}
+\paragraph{Promptable foundation models.}
+SAM supports point, box, and mask prompts \cite{sam}. Variational prompting evaluations report that boxes can be stronger than centroid or random points \cite{gaus}. PP-SAM studies perturbed-prompt adaptation \cite{ppsam}; UncertainSAM formalizes uncertainty estimation \cite{uncertainsam}; recent work also optimizes point prompts using learned agents \cite{attackdefense}. These results establish prompt robustness as an active topic. Our narrower contribution is matched-quality full-validation evidence with pre-specified paired inference.
 
-The baseline estimates the target appearance from a small disk around the center point. Pixels inside the prompt box are segmented if their RGB distance to this median color prototype is below an adaptive Otsu threshold. Small components are removed, holes are filled, and the connected component nearest to the prompt point is retained.
+\paragraph{Transparent baselines.}
+SLIC provides efficient, spatially regular Lab-space primitives \cite{slic}. We use SLIC as a representation rather than claim it as a new learned method. Comparison with GrabCut and explicit ablations prevents method complexity from being mistaken for superiority.
 
-\subsection{Robust Superpixel Prompt Segmentation}
+\section{Methods}
 
-The robust method first runs the center-color baseline to obtain a conservative foreground seed. It then oversegments the image into SLIC superpixels, which were designed to provide efficient boundary-aware image primitives \cite{slic}. Each superpixel is represented by mean Lab color and normalized spatial coordinates. Foreground prototypes are estimated from superpixels intersecting the center-point disk, while background prototypes are estimated from superpixels outside the prompt box and along the box border.
+\subsection{Task and prompts}
+For each VOC image, the largest connected foreground component across semantic labels 1--20 defines one binary target. The clean box is its tight rectangle; the clean point maximizes the Euclidean distance transform inside the target. These prompts use ground-truth geometry and define a controlled benchmark, not a model of unaided human annotation. No method is trained or fine-tuned on VOC validation.
 
-Each superpixel receives a foreground score based on its relative distance to foreground and background prototypes, combined with a weak spatial prior centered at the prompt point. The final mask is the union of the conservative color seed and superpixel consensus across slightly perturbed boxes, followed by morphology and point-connected component selection.
+\subsection{CPU methods}
+Center Color estimates an RGB prototype around the point, thresholds color distance within the box, and applies morphology and point-connected component selection. Robust Superpixel computes SLIC labels and mean Lab/spatial features, estimates point-induced foreground and box-induced background prototypes, combines relative prototype distance with a spatial prior, unions the result with Center Color, and applies the same cleanup. Ablations remove the color seed, spatial prior, or three-box consensus.
 
-\section{Experimental Setup}
+GrabCut uses only the prompt: outside-box pixels initialize background, inside-box pixels probable foreground, and a point disk sure foreground. Five iterations are used. Eight OpenCV initialization failures are retained and scored as zero.
 
-The experiment uses a compact subset of PASCAL VOC 2012 validation samples \cite{voc} from the Hugging Face mirror \texttt{nateraw/pascal-voc-2012}. The subset contains 30 samples and 12 object classes. The evaluation reports Intersection over Union (IoU) and Dice score:
+\subsection{SAM and candidate selection}
+SAM ViT-B is evaluated with point-only, box-only, and point-plus-box prompts. Under noisy point-plus-box input, five extra prompts are sampled locally around the observed prompt without access to the clean prompt. We compare the single noisy prediction, maximum SAM score, mask-IoU consistency medoid, majority vote, and Oracle best-of-six. Oracle uses target IoU and is a descriptive upper bound only.
 
-\[
-\text{IoU} = \frac{|P \cap G|}{|P \cup G|}, \qquad
-\text{Dice} = \frac{2|P \cap G|}{|P| + |G|}.
-\]
+\section{Frozen Protocol}
 
-The reproducible commands are:
+\subsection{Data separation}
+The tuning split contains 100 VOC train images: five largest-component targets per class, sampled with seed 20260719. The confirmatory split contains all 1,449 VOC validation rows. The prior 30-image study is exploratory and excluded from confirmation. Data manifests contain identifiers and geometry but no image or mask payloads; manifests, sources, algorithm files, SAM source, and the ViT-B checkpoint are SHA-256 pinned.
 
-\begin{verbatim}
-.\scripts\run_all.ps1
-python scripts/download_voc_subset.py --count 30
-python scripts/run_experiment.py --max-samples 30
-python scripts/analyze_results.py
-.\.venv-sam\Scripts\python.exe scripts/run_robustness_experiment.py ^
-  --max-samples 30 --trials 2 --include-sam --device cuda
-.\.venv-sam\Scripts\python.exe scripts/run_prompt_uncertainty_experiment.py ^
-  --max-samples 30 --trials 2 --ensemble-size 5 --device cuda
-python scripts/analyze_statistics.py
-\end{verbatim}
+\subsection{Prompt calibration}
+On tuning data only, independent deterministic grid searches match point hit rate and box IoU to the same quality targets using 20 trials per target.
+
+\begin{table}[h]
+\centering
+\caption{Tuning-only noise calibration.}
+\begin{tabular}{lrrrrr}
+\toprule
+Severity & Target & Point scale & Hit rate & Box scale & Box IoU \\
+\midrule
+Mild & 0.85 & 0.1675 & 0.8480 & 0.0400 & 0.8538 \\
+Moderate & 0.65 & 0.2725 & 0.6495 & 0.1150 & 0.6509 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+On validation, moderate point hit rate is 0.6391 and box IoU is 0.6514. This difference is reported without post-hoc recalibration.
+
+\subsection{Hypotheses and inference}
+The primary metric is sample-macro IoU. Five SAM trials are averaged within each sample. H1 states Robust Superpixel exceeds Center Color. H2 states SAM score selection exceeds a single moderate noisy prompt. H3 states matched-quality box noise causes a larger loss than point noise, equivalently point-noise IoU minus box-noise IoU is positive.
+
+Each paired effect uses a 20,000-replicate bootstrap interval and a 50,000-permutation sign-flip test. H1--H3 are corrected together by Holm's method at family-wise $\alpha=0.05$. Dice, resource use, strata, alternative selectors, and Oracle are secondary or descriptive.
 
 \section{Results}
 
+\subsection{CPU baselines and ablations}
+
 \begin{table}[h]
 \centering
-\caption{Aggregate results on the 30-sample VOC 2012 subset.}
+\caption{Complete VOC validation CPU results. Failures are scored as zero.}
 \begin{tabular}{lrrrr}
-\hline
-Method & Mean IoU & Std IoU & Mean Dice & Std Dice \\
-\hline
-Center-color baseline & 0.5468 & 0.2323 & 0.6754 & 0.2122 \\
-Robust superpixel & 0.6031 & 0.2111 & 0.7277 & 0.1895 \\
-SAM ViT-B point+box & 0.8325 & 0.1484 & 0.9002 & 0.1044 \\
-\hline
+\toprule
+Method & IoU & Dice & Median ms & Failures \\
+\midrule
+Center Color & 0.5417 & 0.6768 & 13.4 & 0 \\
+GrabCut point+box & \textbf{0.6878} & \textbf{0.7782} & 416.8 & 8 \\
+Robust Superpixel & 0.6049 & 0.7351 & 204.2 & 0 \\
+\quad no color seed & 0.4645 & 0.5989 & 189.6 & 0 \\
+\quad no spatial prior & 0.5838 & 0.7162 & 205.0 & 0 \\
+\quad single box & 0.6049 & 0.7351 & 193.4 & 0 \\
+\bottomrule
 \end{tabular}
 \end{table}
 
-The robust method improves mean IoU by 0.0562 absolute points and mean Dice by 0.0523. At the sample level, it wins on 23 samples, ties on 5 samples, and loses on only 2 samples relative to the center-color baseline.
+H1 is supported: Robust Superpixel improves over Center Color by 0.0632 IoU, 95\% CI [0.0578, 0.0686], Holm $p=0.000060$. GrabCut is stronger. Removing the color seed costs 0.1404 IoU and removing the spatial prior costs 0.0211. Removing multi-box consensus changes mean IoU by only $+0.00003$, contradicting the exploratory intuition that box voting was important.
 
-The optional GPU SAM ViT-B comparison reaches 0.8325 mean IoU and 0.9002 mean Dice. This confirms that the prompts generated by the benchmark pipeline are informative enough for a modern foundation segmentation model, while the robust superpixel method remains useful as a transparent low-resource baseline.
-
-\subsection{Prompt Robustness}
-
-To evaluate prompt sensitivity, the robustness benchmark perturbs both the center point and the bounding box. Mild perturbations shift the point and box by roughly 5--6\% of object size; moderate perturbations use roughly 10--12\%. Each non-clean severity is evaluated with two deterministic trials per sample.
+\subsection{SAM modality}
 
 \begin{table}[h]
 \centering
-\caption{Robustness under prompt perturbation.}
-\begin{tabular}{llrr}
-\hline
-Severity & Method & Mean IoU & Mean Dice \\
-\hline
-clean & robust superpixel & 0.6031 & 0.7277 \\
-mild & robust superpixel & 0.5579 & 0.6927 \\
-moderate & robust superpixel & 0.4568 & 0.5967 \\
-clean & SAM ViT-B noisy prompt & 0.8325 & 0.9002 \\
-mild & SAM ViT-B noisy prompt & 0.7731 & 0.8537 \\
-moderate & SAM ViT-B noisy prompt & 0.6756 & 0.7795 \\
-\hline
+\caption{Clean SAM ViT-B prompt modalities.}
+\begin{tabular}{lrr}
+\toprule
+Prompt & IoU & Dice \\
+\midrule
+Point only & 0.5346 & 0.6198 \\
+Box only & 0.8469 & 0.9051 \\
+Point+box & \textbf{0.8476} & \textbf{0.9076} \\
+\bottomrule
 \end{tabular}
 \end{table}
 
-The robustness benchmark reveals the main limitation of prompt segmentation. SAM has much higher absolute accuracy, but it still loses about 0.157 IoU under moderate prompt noise. A naive lightweight prompt repair strategy does not improve SAM: it reduces moderate-noise SAM IoU from 0.6756 to 0.5745. SAM's own score-based selection also underperforms the original noisy prompt at 0.6118. This negative result suggests that prompt repair should preserve uncertainty instead of collapsing a noisy prompt into a single mask-derived point and box.
+Point+box is only 0.0007 IoU above box-only. The full-validation result refines the exploratory claim: SAM is box-dominated, but box-only is not stronger in aggregate.
 
-\subsection{Prompt Uncertainty Research Experiment}
-
-The robustness result motivates a more precise research question: which prompt channel actually carries the useful information, and can multiple plausible prompts recover performance after noise? This is directly connected to the broader interactive-segmentation literature: box-driven methods such as GrabCut emphasize localization and background exclusion \cite{grabcut}, while click-driven methods emphasize corrective user feedback \cite{ritm,simpleclick}. The prompt uncertainty experiment therefore evaluates three clean prompt modalities, decomposes point noise and box noise, and tests multi-prompt selection around a noisy observation. For efficiency and reproducibility, SAM image embeddings are computed once per sample and reused for all prompt queries.
+\subsection{Primary hypotheses}
 
 \begin{table}[h]
 \centering
-\caption{Prompt modality, noise decomposition, and uncertainty selection with SAM ViT-B.}
-\begin{tabular}{llrr}
-\hline
-Setting & Condition & Mean IoU & Mean Dice \\
-\hline
-clean modality & point-only & 0.4430 & 0.5303 \\
-clean modality & box-only & 0.8565 & 0.9150 \\
-clean modality & point+box & 0.8325 & 0.9002 \\
-moderate noise & point noise & 0.8507 & 0.9116 \\
-moderate noise & box noise & 0.6462 & 0.7520 \\
-moderate noise & point+box noise & 0.6385 & 0.7416 \\
-moderate ensemble & single noisy prompt & 0.6385 & 0.7416 \\
-moderate ensemble & score selection & 0.6796 & 0.7801 \\
-moderate ensemble & consistency medoid & 0.6581 & 0.7595 \\
-moderate ensemble & oracle best-of-six & 0.7401 & 0.8284 \\
-\hline
+\caption{Pre-specified paired IoU effects with Holm correction.}
+\begin{tabular}{p{0.46\linewidth}rrr}
+\toprule
+Comparison & Mean $\Delta$ & 95\% CI & Holm $p$ \\
+\midrule
+H1: Robust Superpixel $-$ Center Color & 0.0632 & [0.0578, 0.0686] & 0.000060 \\
+H2: score selection $-$ single noisy & 0.0204 & [0.0145, 0.0261] & 0.000060 \\
+H3: point-noise IoU $-$ box-noise IoU & 0.1067 & [0.0996, 0.1138] & 0.000060 \\
+\bottomrule
 \end{tabular}
 \end{table}
 
-The first surprising finding is that box-only prompting is stronger than point+box prompting on this subset. The point prompt is not useless, but it can over-constrain SAM when the box already localizes the object well. The second finding is sharper: point perturbation barely hurts SAM, while box perturbation is the main failure mode. The third finding is constructive but less statistically secure. Under moderate point+box noise, score-based multi-prompt selection improves mean IoU from 0.6385 to 0.6796, and the oracle best-of-six reaches 0.7401. This gap estimates the remaining headroom for a calibrated prompt-quality estimator.
+Moderate point noise yields 0.8184 IoU and matched-quality box noise 0.7117, supporting H3. Under joint noise, a single prompt reaches 0.6521, score selection 0.6725, consistency medoid 0.6766, vote consensus 0.6705, and Oracle 0.7821. H2 is statistically supported but modest. Consistency medoid was not a primary comparison and remains exploratory; Oracle is not deployable.
 
-\subsection{Statistical Reliability}
+\section{Discussion}
 
-To avoid relying only on point estimates, the project adds paired statistical analysis over sample-level deltas. Each comparison uses a paired bootstrap 95\% confidence interval and a paired sign-flip permutation test. For prompt-noise and ensemble experiments with two trials per sample, trial results are averaged within each sample before testing, so the effective unit remains the image rather than the perturbation trial.
+Representative evaluation changes the original interpretation. The proposed CPU method is reliably better than its minimal baseline, but not GrabCut; its value lies in transparency and a speed--accuracy operating point. Box localization remains SAM's principal signal, consistent with prior prompting studies \cite{gaus}; our added evidence is that channel sensitivity persists after realized prompt quality is approximately matched. SAM score selection becomes statistically reliable at full scale, although the improvement is only 0.0204 IoU and requires extra decoder calls.
 
-\begin{table}[h]
-\centering
-\caption{Paired IoU effects with 95\% bootstrap confidence intervals.}
-\begin{tabular}{lrrr}
-\hline
-Comparison & Delta IoU & 95\% CI & $p$ \\
-\hline
-Robust superpixel vs. center-color & 0.0562 & [0.0301, 0.0891] & 0.00002 \\
-SAM box-only vs. point+box & 0.0240 & [0.0080, 0.0421] & 0.00922 \\
-Moderate box noise vs. point noise & -0.2044 & [-0.2655, -0.1474] & 0.00002 \\
-Score selection vs. single noisy prompt & 0.0411 & [-0.0044, 0.1029] & 0.15418 \\
-Oracle best-of-six vs. single noisy prompt & 0.1017 & [0.0593, 0.1589] & 0.00002 \\
-\hline
-\end{tabular}
-\end{table}
-
-The statistical layer strengthens three conclusions and weakens one. The lightweight robust superpixel improvement is not just an aggregate artifact: its confidence interval is entirely positive. The box-only SAM result is also supported by a positive paired interval. The box-noise penalty is large and stable. However, score-based multi-prompt selection is only a promising trend in the current subset, because its interval crosses zero and the sign-flip test is not significant. The oracle result remains significant, so the recoverable headroom exists, but the current selection rule is not yet a reliable solution.
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.72\linewidth]{../outputs/figures/metric_summary.png}
-\caption{Aggregate IoU and Dice comparison.}
-\end{figure}
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.76\linewidth]{../outputs/sam/method_comparison.png}
-\caption{Comparison between lightweight prompt baselines and GPU SAM ViT-B.}
-\end{figure}
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.86\linewidth]{../outputs/robustness/robustness_curve.png}
-\caption{Prompt perturbation robustness under clean, mild, and moderate prompt noise.}
-\end{figure}
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.82\linewidth]{../outputs/prompt_uncertainty/prompt_modality.png}
-\caption{Clean SAM prompt modality comparison. Box-only prompting is strongest on the selected VOC subset.}
-\end{figure}
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.82\linewidth]{../outputs/prompt_uncertainty/noise_decomposition.png}
-\caption{Noise decomposition. SAM is much more sensitive to box noise than point noise.}
-\end{figure}
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.82\linewidth]{../outputs/prompt_uncertainty/uncertainty_ensemble.png}
-\caption{Multi-prompt selection under moderate point+box noise. Score selection recovers part of the lost IoU.}
-\end{figure}
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.86\linewidth]{../outputs/statistics/paired_effects.png}
-\caption{Paired IoU effects with 95\% bootstrap confidence intervals.}
-\end{figure}
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.86\linewidth]{../outputs/analysis/per_class_iou.png}
-\caption{Per-class mean IoU. The strongest gains appear on horse, tvmonitor, and aeroplane examples.}
-\end{figure}
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=0.68\linewidth]{../outputs/analysis/iou_delta_histogram.png}
-\caption{Distribution of sample-level IoU improvement over the center-color baseline.}
-\end{figure}
-
-\begin{figure}[h]
-\centering
-\includegraphics[width=\linewidth]{../outputs/figures/sample_001.png}
-\caption{Qualitative example showing prompt, ground truth, center-color prediction, and robust superpixel prediction.}
-\end{figure}
-
-\clearpage
-
-\section{Analysis}
-
-The center-color baseline works when the target has a compact appearance and contrasts clearly with the local background. It fails when the object has multiple colors, when the center click lands on a non-representative part, or when background regions share similar colors.
-
-The robust method improves the prompt interface in three ways. First, superpixels better respect local image boundaries than raw pixel thresholding. Second, background evidence from the box boundary and outside-box region suppresses leakage to nearby clutter. Third, box perturbation makes the prediction less sensitive to a single exact prompt.
-
-The hardest cases include train, bicycle, diningtable, and boat images. Trains and dining tables often contain repetitive interior structures, bicycles contain thin parts that are easy to miss, and boats may include strong background colors inside the prompt box. The robustness experiment further shows that prompt noise is not a small implementation detail: it changes the ranking and reliability of methods.
-
-The prompt uncertainty experiment deepens this conclusion. The original intuition might be that the point and box are simply two helpful prompts whose errors add smoothly. The measurements reject that assumption. In this benchmark, the box dominates localization, while the point behaves more like a weak disambiguation signal. The confidence intervals show that this is not merely a visual impression. Therefore, robust prompted segmentation should not treat all prompt noise equally. It should either protect the box channel, sample multiple plausible boxes, or learn a reliability model that predicts when SAM's internal score is well calibrated.
-
-\section{SAM Comparison and Lightweight Baseline}
-
-PromptLite-Seg is intentionally designed so that its main baseline remains SAM-free, CPU-friendly, deterministic, and easy to inspect. With GPU resources available, the project also evaluates SAM ViT-B using the same point-and-box prompts. This comparison is important because SAM is explicitly designed as a promptable foundation segmentation model \cite{sam}, whereas PromptLite-Seg is closer in spirit to transparent classical interactive methods \cite{grabcut,slic}. SAM achieves much higher absolute accuracy, especially on objects with complex boundaries, while the lightweight method provides an interpretable baseline and a useful diagnostic fallback.
-
-The deeper finding is that a stronger model is not automatically robust to prompt uncertainty. The oracle prompt selection significantly improves SAM under moderate noise, but the practical score-selection rule is not statistically confirmed on the current subset. This exposes a concrete future direction: robust prompted segmentation should model prompt uncertainty explicitly, for example by maintaining multiple plausible prompts or by learning a calibrated prompt-quality estimator.
+Negative results are equally informative. Multi-box consensus adds complexity without aggregate benefit. The strongest CPU method is classical GrabCut. These findings prevent a polished engineering artifact from being presented as a stronger methodological contribution than the evidence supports.
 
 \section{Threats to Validity}
 
-The main limitation is dataset scale. The project uses a compact 30-sample subset of PASCAL VOC 2012 to keep the course artifact reproducible on a local machine. Paired bootstrap intervals reduce overinterpretation of sample-level differences, but they do not replace evaluation on the full validation set or on other datasets.
-
-The prompt construction is also idealized. Points and boxes are derived from ground-truth masks rather than collected from human annotators. The perturbation benchmarks approximate annotation noise, but real user clicks and boxes may have different error distributions. Therefore, the box-dominance conclusion should be read as a finding for this controlled prompt-generation pipeline, not as a universal statement about all interactive segmentation settings.
-
-The SAM experiments depend on a specific SAM ViT-B checkpoint and CUDA environment. Results may differ with SAM ViT-L, SAM ViT-H, SAM2-style models, or different preprocessing libraries. To make the artifact easier to reproduce, the repository includes a CPU-friendly default script, \texttt{scripts/run\_all.ps1}, and keeps GPU experiments behind explicit flags.
-
-Finally, the multi-prompt selection result is intentionally reported with caution. Score selection improves mean IoU, but its confidence interval crosses zero on the current subset. The significant oracle gain shows that recoverable headroom exists, but a reliable automatic selector remains future work rather than a completed claim.
+Ground-truth-derived prompts are more controlled than real user input. Numeric matching of hit rate and box IoU does not make the metrics psychologically equivalent, and neither distribution is fitted to human errors. The benchmark selects one largest component per image rather than every instance. Only VOC 2012 and SAM ViT-B are tested; cross-dataset confirmation, SAM 2, larger checkpoints, and learned interactive baselines such as RITM or SimpleClick would improve external validity. GrabCut has eight explicit failures. The tuning split is class-balanced while validation has the natural distribution. Although source hashes prevent silent post-confirmatory changes, the hypotheses were motivated by exploratory results; an independent second dataset would offer stronger confirmation.
 
 \section{Conclusion}
 
-This project implements and evaluates a zero-shot prompted segmentation pipeline on PASCAL VOC 2012. It satisfies the course requirement of running an algorithm on a benchmark, and it adds analysis beyond aggregate scores through per-class, success/failure, SAM comparison, prompt robustness, prompt uncertainty, and statistical reliability experiments. The main research conclusion is that prompt quality is a structured bottleneck: SAM is strong under clean prompts, box noise causes statistically stable degradation, point noise is comparatively harmless on this subset, and multi-prompt selection has measurable headroom but requires better calibration.
+Under a frozen full-validation protocol, Robust Superpixel improves over Center Color but trails GrabCut. SAM depends strongly on box localization: matched-quality box noise produces a substantially larger loss than point noise. SAM score selection yields a small, Holm-corrected improvement over a single noisy prompt; Oracle remains only an upper bound. The primary contribution is a reproducible separation of engineering quality, prompt-channel sensitivity, and evidence strength rather than a state-of-the-art claim.
 
-\begin{thebibliography}{9}
-\bibitem{voc}
-Mark Everingham, Luc Van Gool, Christopher K. I. Williams, John Winn, and Andrew Zisserman.
-The PASCAL Visual Object Classes Challenge.
-\emph{International Journal of Computer Vision}, 2010; VOC 2012 challenge data.
-\url{https://www.robots.ox.ac.uk/~vgg/projects/pascal/VOC/voc2012/}
-
-\bibitem{grabcut}
-Carsten Rother, Vladimir Kolmogorov, and Andrew Blake.
-GrabCut: Interactive Foreground Extraction using Iterated Graph Cuts.
-\emph{ACM Transactions on Graphics (SIGGRAPH)}, 2004.
-\url{https://dl.acm.org/doi/10.1145/1015706.1015720}
-
-\bibitem{dextr}
-Kevis-Kokitsi Maninis, Sergi Caelles, Jordi Pont-Tuset, and Luc Van Gool.
-Deep Extreme Cut: From Extreme Points to Object Segmentation.
-\emph{CVPR}, 2018.
-\url{https://arxiv.org/abs/1711.09081}
-
-\bibitem{ritm}
-Konstantin Sofiiuk, Ilia A. Petrov, and Anton Konushin.
-Reviving Iterative Training with Mask Guidance for Interactive Segmentation.
-\emph{arXiv:2102.06583}, 2021.
-\url{https://arxiv.org/abs/2102.06583}
-
-\bibitem{simpleclick}
-Qin Liu, Zhenlin Xu, Gedas Bertasius, and Marc Niethammer.
-SimpleClick: Interactive Image Segmentation with Simple Vision Transformers.
-\emph{ICCV}, 2023.
-\url{https://arxiv.org/abs/2210.11006}
-
-\bibitem{sam}
-Alexander Kirillov et al.
-Segment Anything.
-ICCV 2023.
-\url{https://arxiv.org/abs/2304.02643}
-
-\bibitem{slic}
-Radhakrishna Achanta et al.
-SLIC Superpixels Compared to State-of-the-Art Superpixel Methods.
-IEEE TPAMI 2012.
-\url{https://doi.org/10.1109/TPAMI.2012.120}
+\begin{thebibliography}{12}
+\bibitem{voc} M. Everingham et al. The PASCAL Visual Object Classes Challenge. \emph{IJCV}, 2010. \url{https://www.robots.ox.ac.uk/~vgg/projects/pascal/VOC/}
+\bibitem{grabcut} C. Rother, V. Kolmogorov, and A. Blake. GrabCut: Interactive Foreground Extraction Using Iterated Graph Cuts. \emph{ACM TOG}, 2004.
+\bibitem{slic} R. Achanta et al. SLIC Superpixels Compared to State-of-the-Art Superpixel Methods. \emph{TPAMI}, 2012.
+\bibitem{dextr} K.-K. Maninis et al. Deep Extreme Cut: From Extreme Points to Object Segmentation. \emph{CVPR}, 2018.
+\bibitem{ritm} K. Sofiiuk, I. Petrov, and A. Konushin. Reviving Iterative Training with Mask Guidance for Interactive Segmentation. \emph{ICIP}, 2022.
+\bibitem{simpleclick} Q. Liu et al. SimpleClick: Interactive Image Segmentation with Simple Vision Transformers. \emph{ICCV}, 2023.
+\bibitem{sam} A. Kirillov et al. Segment Anything. \emph{ICCV}, 2023.
+\bibitem{gaus} Y. Gaus et al. Performance Evaluation of Segment Anything Model with Variational Prompting. \emph{CVPRW}, 2024.
+\bibitem{ppsam} A. Rahman et al. PP-SAM: Perturbed Prompts for Robust Adaptation of Segment Anything Model. \emph{CVPRW}, 2024.
+\bibitem{uncertainsam} T. Kaiser et al. UncertainSAM: Segment Anything with Uncertainty Estimation. \emph{ICML}, 2025.
+\bibitem{benenson} R. Benenson, S. Popov, and V. Ferrari. Large-Scale Interactive Object Segmentation with Human Annotators. \emph{CVPR}, 2019.
+\bibitem{attackdefense} Liu et al. Attack for Defense: Adversarial Agents for Point Prompt Optimization. \emph{CVPR}, 2026.
 \end{thebibliography}
 
 \end{document}

@@ -27,14 +27,14 @@ artifact that does not redistribute third-party data without permission.
 - [x] Fix the SAM robustness call contract and add mock/contract coverage for
   every SAM execution branch.
 - [x] Freeze algorithms, hyperparameters, hypotheses, and evaluation protocol.
-- [ ] Create a disjoint tuning split and either evaluate all 1,449 VOC 2012
+- [x] Create a disjoint tuning split and either evaluate all 1,449 VOC 2012
   validation images or a precommitted class-stratified sample of at least 300.
 - [x] Calibrate point and box perturbations using measured point-hit rate and box
   IoU (or a cited human-prompt error distribution).
-- [ ] Add GrabCut and at least one standard interactive-segmentation baseline;
+- [x] Add GrabCut and at least one standard interactive-segmentation baseline;
   add component ablations, latency, and memory measurements.
-- [ ] Pre-specify primary comparisons and apply multiplicity correction.
-- [ ] Update related work, results, limitations, and an anonymous submission.
+- [x] Pre-specify primary comparisons and apply multiplicity correction.
+- [x] Update related work, results, limitations, and an anonymous submission.
 - [ ] Remove redistributable-risk VOC assets from public history; add
   `THIRD_PARTY_NOTICES.md`; pin official SAM source and checkpoint SHA-256.
 - [ ] Pass clean-environment tests/CI and regenerate a reviewable report.
@@ -91,3 +91,23 @@ artifact that does not redistribute third-party data without permission.
 - Pinned official Meta SAM commit `dca509fe` through its codeload archive and
   recorded archive/checkpoint SHA-256 digests. A real RTX 5070 Ti CUDA smoke run
   completed all modality, calibrated-noise, ensemble, and oracle branches.
+- Completed the frozen full-validation runs: 1,449 CPU samples and 55,062 SAM
+  metric rows. Robust Superpixel reaches 0.6049 IoU, GrabCut 0.6878 when its
+  eight failures are scored as zero, and SAM point+box 0.8476.
+- Evaluated H1--H3 with 20,000 paired-bootstrap replicates, 50,000 sign-flip
+  permutations, and Holm correction. All three pre-specified effects remain
+  significant; Oracle is reported only as a descriptive upper bound.
+- Rewrote the README and paper around the confirmatory evidence, added current
+  related work and explicit negative results, and generated both named and
+  five-page anonymous PDFs. PDF text audit found no configured identity tokens.
+- Added a deterministic anonymous supplementary exporter. Its 60-file ZIP is
+  allowlisted and rejects identity-bearing text, Git history, VOC-style image
+  assets, and model weights. All 11 committed result artifacts pass SHA-256
+  verification.
+- Removed VOC samples and image-bearing exploratory outputs from the current
+  Git index, added third-party notices, and documented that the existing private
+  repository history must not itself be made public. A future public repository
+  must start from the audited clean export, not from this historical `main`.
+- Found that the previous Linux CI failure came from CRLF-sensitive frozen
+  source hashes. Defined source hashes canonically over LF-normalized UTF-8;
+  local compile and test validation now reports 45 passed.
