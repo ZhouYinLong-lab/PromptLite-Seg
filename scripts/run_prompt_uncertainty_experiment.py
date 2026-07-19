@@ -10,13 +10,13 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-import torch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from promptseg.dataset import Prompt, iter_samples
 from promptseg.metrics import dice, iou
+from promptseg.sam import PROMPT_MODES, predict_sam
 from promptseg.utils import SEVERITIES, clip_bbox, stable_rng, write_csv
 from promptseg.visualize import draw_prediction_figure
 
@@ -26,7 +26,6 @@ __all__ = [
     "ENSEMBLE_METHODS",
 ]
 
-PROMPT_MODES = ("point_only", "box_only", "point_box")
 NOISE_SOURCES = ("point_noise", "box_noise", "point_box_noise")
 ENSEMBLE_METHODS = (
     "sam_single_noisy",
@@ -111,28 +110,6 @@ def jitter_around_observed_prompt(
     return replace(prompt, bbox=bbox, point=(px, py))
 
 
-def predict_sam(predictor, prompt: Prompt, prompt_mode: str) -> tuple[np.ndarray, float]:
-    point_coords: np.ndarray | None = None
-    point_labels: np.ndarray | None = None
-    box: np.ndarray | None = None
-
-    if prompt_mode in {"point_only", "point_box"}:
-        point_coords = np.array([prompt.point], dtype=np.float32)
-        point_labels = np.array([1], dtype=np.int32)
-    if prompt_mode in {"box_only", "point_box"}:
-        box = np.array(prompt.bbox, dtype=np.float32)
-
-    with torch.no_grad():
-        masks, scores, _ = predictor.predict(
-            point_coords=point_coords,
-            point_labels=point_labels,
-            box=box,
-            multimask_output=True,
-        )
-    best_idx = int(np.argmax(scores))
-    return masks[best_idx].astype(bool), float(scores[best_idx])
-
-
 def mask_iou_matrix(masks: list[np.ndarray]) -> np.ndarray:
     n = len(masks)
     out = np.eye(n, dtype=np.float64)
@@ -150,6 +127,34 @@ def select_consistency_medoid(masks: list[np.ndarray]) -> np.ndarray:
     pairwise = mask_iou_matrix(masks)
     scores = (pairwise.sum(axis=1) - 1.0) / (len(masks) - 1)
     return masks[int(np.argmax(scores))]
+
+
+def select_ensemble_predictions(
+    candidate_masks: list[np.ndarray],
+    candidate_scores: list[float],
+    target: np.ndarray,
+) -> dict[str, tuple[np.ndarray, float]]:
+    """Return deployable ensemble selections plus an explicit oracle bound."""
+
+    if not candidate_masks or len(candidate_masks) != len(candidate_scores):
+        raise ValueError("candidate masks and scores must be non-empty and aligned")
+    oracle_idx = int(np.argmax([iou(mask, target) for mask in candidate_masks]))
+    return {
+        "sam_single_noisy": (candidate_masks[0], candidate_scores[0]),
+        "sam_score_select": (
+            candidate_masks[int(np.argmax(candidate_scores))],
+            max(candidate_scores),
+        ),
+        "sam_consistency_medoid": (
+            select_consistency_medoid(candidate_masks),
+            float(np.mean(candidate_scores)),
+        ),
+        "sam_vote_consensus": (
+            np.mean(np.stack(candidate_masks, axis=0), axis=0) >= 0.5,
+            float(np.mean(candidate_scores)),
+        ),
+        "sam_oracle_best": (candidate_masks[oracle_idx], candidate_scores[oracle_idx]),
+    }
 
 
 def summarize(rows: list[dict]) -> list[dict]:
@@ -320,8 +325,13 @@ def main() -> None:
     parser.add_argument("--max-samples", type=int, default=30)
     parser.add_argument("--trials", type=int, default=2)
     parser.add_argument("--ensemble-size", type=int, default=5)
-    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument("--device", default=None)
     args = parser.parse_args()
+
+    import torch
+
+    if args.device is None:
+        args.device = "cuda" if torch.cuda.is_available() else "cpu"
 
     try:
         from segment_anything import SamPredictor, sam_model_registry
@@ -445,19 +455,11 @@ def main() -> None:
                     candidate_masks.append(mask)
                     candidate_scores.append(score)
 
-                single_pred = candidate_masks[0]
-                score_pred = candidate_masks[int(np.argmax(candidate_scores))]
-                medoid_pred = select_consistency_medoid(candidate_masks)
-                vote_pred = np.mean(np.stack(candidate_masks, axis=0), axis=0) >= 0.5
-                oracle_idx = int(np.argmax([iou(mask, sample.mask) for mask in candidate_masks]))
-                oracle_pred = candidate_masks[oracle_idx]
-                method_predictions = {
-                    "sam_single_noisy": (single_pred, candidate_scores[0]),
-                    "sam_score_select": (score_pred, max(candidate_scores)),
-                    "sam_consistency_medoid": (medoid_pred, float(np.mean(candidate_scores))),
-                    "sam_vote_consensus": (vote_pred, float(np.mean(candidate_scores))),
-                    "sam_oracle_best": (oracle_pred, candidate_scores[oracle_idx]),
-                }
+                method_predictions = select_ensemble_predictions(
+                    candidate_masks,
+                    candidate_scores,
+                    sample.mask,
+                )
                 for method, (pred, score) in method_predictions.items():
                     add_row(
                         rows,
@@ -475,6 +477,11 @@ def main() -> None:
                     )
 
                 if severity == "moderate" and trial == 0 and examples_written < 4:
+                    single_pred = method_predictions["sam_single_noisy"][0]
+                    score_pred = method_predictions["sam_score_select"][0]
+                    medoid_pred = method_predictions["sam_consistency_medoid"][0]
+                    vote_pred = method_predictions["sam_vote_consensus"][0]
+                    oracle_pred = method_predictions["sam_oracle_best"][0]
                     draw_prediction_figure(
                         sample,
                         {

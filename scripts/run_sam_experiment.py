@@ -9,13 +9,13 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-import torch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from promptseg.dataset import iter_samples
 from promptseg.metrics import dice, iou
+from promptseg.sam import predict_sam
 from promptseg.utils import write_csv
 from promptseg.visualize import draw_prediction_figure
 
@@ -76,8 +76,13 @@ def main() -> None:
     parser.add_argument("--baseline-summary", type=Path, default=Path("outputs/summary.json"))
     parser.add_argument("--model-type", default="vit_b", choices=["vit_b", "vit_l", "vit_h"])
     parser.add_argument("--max-samples", type=int, default=30)
-    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument("--device", default=None)
     args = parser.parse_args()
+
+    import torch
+
+    if args.device is None:
+        args.device = "cuda" if torch.cuda.is_available() else "cpu"
 
     try:
         from segment_anything import SamPredictor, sam_model_registry
@@ -117,16 +122,7 @@ def main() -> None:
             predictor.set_image(sample.image)
             cached_image_id = sample.sample_id
 
-        box = np.array(sample.prompt.bbox, dtype=np.float32)
-        with torch.no_grad():
-            masks, scores, _ = predictor.predict(
-                point_coords=np.array([sample.prompt.point], dtype=np.float32),
-                point_labels=np.array([1], dtype=np.int32),
-                box=box,
-                multimask_output=True,
-            )
-        best_idx = int(np.argmax(scores))
-        pred = masks[best_idx].astype(bool)
+        pred, score = predict_sam(predictor, sample.prompt)
         sample_iou = iou(pred, sample.mask)
         sample_dice = dice(pred, sample.mask)
         ious.append(sample_iou)
@@ -138,7 +134,7 @@ def main() -> None:
                 "method": f"sam_{args.model_type}_point_box",
                 "iou": f"{sample_iou:.6f}",
                 "dice": f"{sample_dice:.6f}",
-                "score": f"{float(scores[best_idx]):.6f}",
+                "score": f"{score:.6f}",
                 "mask_pixels": int(sample.mask.sum()),
                 "pred_pixels": int(pred.sum()),
             }

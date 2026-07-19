@@ -18,6 +18,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from promptseg.algorithms import center_color, robust_superpixel
 from promptseg.dataset import Prompt, iter_samples
 from promptseg.metrics import dice, iou
+from promptseg.sam import predict_sam
 from promptseg.utils import SEVERITIES, clip_bbox, stable_rng, write_csv
 from promptseg.visualize import draw_prediction_figure
 
@@ -70,18 +71,24 @@ def repaired_superpixel(image: np.ndarray, prompt: Prompt) -> tuple[np.ndarray, 
     return second, repaired
 
 
-def sam_predict(predictor, prompt: Prompt) -> tuple[np.ndarray, float]:
-    import torch
+def evaluate_sam_prompt_pair(
+    predictor,
+    noisy_prompt: Prompt,
+    repaired_prompt: Prompt,
+    target: np.ndarray,
+) -> dict[str, tuple[np.ndarray, float]]:
+    """Evaluate deployable selectors and the explicitly labelled oracle bound."""
 
-    with torch.inference_mode():
-        masks, scores, _ = predictor.predict(
-            point_coords=np.array([prompt.point], dtype=np.float32),
-            point_labels=np.array([1], dtype=np.int32),
-            box=np.array(prompt.bbox, dtype=np.float32),
-            multimask_output=True,
-        )
-    best_idx = int(np.argmax(scores))
-    return masks[best_idx].astype(bool), float(scores[best_idx])
+    noisy_pred, noisy_score = predict_sam(predictor, noisy_prompt)
+    repaired_pred, repaired_score = predict_sam(predictor, repaired_prompt)
+    score_selected = repaired_pred if repaired_score > noisy_score else noisy_pred
+    oracle_best = repaired_pred if iou(repaired_pred, target) > iou(noisy_pred, target) else noisy_pred
+    return {
+        "sam_noisy_prompt": (noisy_pred, noisy_score),
+        "sam_repaired_prompt": (repaired_pred, repaired_score),
+        "sam_score_selected_prompt": (score_selected, max(noisy_score, repaired_score)),
+        "sam_oracle_best_prompt": (oracle_best, float("nan")),
+    }
 
 
 def load_sam(args):
@@ -233,62 +240,29 @@ def main() -> None:
                 )
 
                 if predictor is not None:
-                    sam_pred, sam_score = sam_predict(predictor, noisy_prompt)
+                    sam_variants = evaluate_sam_prompt_pair(
+                        predictor,
+                        noisy_prompt,
+                        repaired_prompt,
+                        sample.mask,
+                    )
+                    sam_pred, _ = sam_variants["sam_noisy_prompt"]
                     predictions["sam_noisy"] = sam_pred
-                    rows.append(
-                        {
-                            "sample_id": sample.sample_id,
-                            "class_name": sample.prompt.class_name,
-                            "severity": severity,
-                            "trial": trial,
-                            "method": "sam_noisy_prompt",
-                            "iou": f"{iou(sam_pred, sample.mask):.6f}",
-                            "dice": f"{dice(sam_pred, sample.mask):.6f}",
-                            "device": device,
-                        }
-                    )
-                    sam_repaired_pred, sam_repaired_score = sam_predict(predictor, sample.image, repaired_prompt)
+                    sam_repaired_pred, _ = sam_variants["sam_repaired_prompt"]
                     predictions["sam_repaired"] = sam_repaired_pred
-                    sam_repaired_iou = iou(sam_repaired_pred, sample.mask)
-                    sam_noisy_iou = iou(sam_pred, sample.mask)
-                    rows.append(
-                        {
-                            "sample_id": sample.sample_id,
-                            "class_name": sample.prompt.class_name,
-                            "severity": severity,
-                            "trial": trial,
-                            "method": "sam_repaired_prompt",
-                            "iou": f"{iou(sam_repaired_pred, sample.mask):.6f}",
-                            "dice": f"{dice(sam_repaired_pred, sample.mask):.6f}",
-                            "device": device,
-                        }
-                    )
-                    score_selected = sam_repaired_pred if sam_repaired_score > sam_score else sam_pred
-                    oracle_best = sam_repaired_pred if sam_repaired_iou > sam_noisy_iou else sam_pred
-                    rows.append(
-                        {
-                            "sample_id": sample.sample_id,
-                            "class_name": sample.prompt.class_name,
-                            "severity": severity,
-                            "trial": trial,
-                            "method": "sam_score_selected_prompt",
-                            "iou": f"{iou(score_selected, sample.mask):.6f}",
-                            "dice": f"{dice(score_selected, sample.mask):.6f}",
-                            "device": device,
-                        }
-                    )
-                    rows.append(
-                        {
-                            "sample_id": sample.sample_id,
-                            "class_name": sample.prompt.class_name,
-                            "severity": severity,
-                            "trial": trial,
-                            "method": "sam_oracle_best_prompt",
-                            "iou": f"{iou(oracle_best, sample.mask):.6f}",
-                            "dice": f"{dice(oracle_best, sample.mask):.6f}",
-                            "device": device,
-                        }
-                    )
+                    for method, (pred, _) in sam_variants.items():
+                        rows.append(
+                            {
+                                "sample_id": sample.sample_id,
+                                "class_name": sample.prompt.class_name,
+                                "severity": severity,
+                                "trial": trial,
+                                "method": method,
+                                "iou": f"{iou(pred, sample.mask):.6f}",
+                                "dice": f"{dice(pred, sample.mask):.6f}",
+                                "device": device,
+                            }
+                        )
 
                 if severity == "moderate" and trial == 0 and examples_written < 4:
                     draw_prediction_figure(
