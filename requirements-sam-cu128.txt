@@ -1,4 +1,4 @@
 --extra-index-url https://download.pytorch.org/whl/cu128
 -r requirements-sam.txt
-torch==2.11.0+cu128
+torch==2.13.0
 torchvision==0.26.0+cu128
