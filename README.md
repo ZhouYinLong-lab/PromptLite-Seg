@@ -12,7 +12,7 @@
 
 ## 项目概览
 
-PromptLite-Seg 是南京大学智能科学与技术2025人工智能导论课程设计的**方向 7：零样本提示分割**项目（课程网站https://www.lamda.nju.edu.cn/guolz/IntroAI/sp2026/exam.html）。
+PromptLite-Seg 是南京大学智能科学与技术2026春人工智能导论课程设计的**方向 7：零样本提示分割**项目（课程网站https://www.lamda.nju.edu.cn/guolz/IntroAI/sp2026/exam.html）。
 项目研究如何仅利用一个前景点和一个目标框，在不针对目标数据集微调模型的情况下获得物体掩码，
 并进一步分析提示形式、提示噪声和多提示选择对分割性能的影响。
 
