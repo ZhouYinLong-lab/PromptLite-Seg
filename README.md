@@ -3,7 +3,8 @@
 > 面向 PASCAL VOC 2012 的轻量级零样本提示分割与提示不确定性研究
 > Lightweight Zero-Shot Prompted Segmentation on PASCAL VOC 2012
 
-[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Python 3.10–3.12](https://img.shields.io/badge/Python-3.10--3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![CPU CI](https://github.com/ZhouYinLong-lab/PromptLite-Seg/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ZhouYinLong-lab/PromptLite-Seg/actions/workflows/ci.yml)
 [![Task](https://img.shields.io/badge/Task-Prompted%20Segmentation-5C6BC0)](https://github.com/facebookresearch/segment-anything)
 [![Dataset](https://img.shields.io/badge/Dataset-PASCAL%20VOC%202012-009688)](http://host.robots.ox.ac.uk/pascal/VOC/voc2012/)
 [![Model](https://img.shields.io/badge/Model-SAM%20ViT--B-111111)](https://github.com/facebookresearch/segment-anything)
