@@ -30,13 +30,15 @@ python scripts/prepare_voc_from_manifest.py \
 python scripts/run_confirmatory_cpu.py
 ```
 
-For SAM, install a GPU-compatible PyTorch build, then run:
+For the verified CUDA 12.8 SAM environment, run:
 
 ```bash
-python -m pip install -r requirements-sam.txt
+python -m pip install -r requirements-sam-cu128.txt
 python scripts/fetch_protocol_assets.py --include-sam
 python scripts/run_confirmatory_sam.py --device cuda
 python scripts/analyze_confirmatory.py
 ```
+
+For another platform, install its compatible PyTorch build first, then use `requirements-sam.txt`.
 
 See `THIRD_PARTY_NOTICES.md` before obtaining VOC or SAM assets.

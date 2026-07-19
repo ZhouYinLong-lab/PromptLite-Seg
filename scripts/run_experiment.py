@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from itertools import islice
 import json
 import sys
 from pathlib import Path
@@ -26,9 +27,8 @@ def main() -> None:
     parser.add_argument("--max-samples", type=int, default=None)
     args = parser.parse_args()
 
-    samples = list(iter_samples(args.data_dir))
-    if args.max_samples is not None:
-        samples = samples[: args.max_samples]
+    sample_iterator = iter_samples(args.data_dir)
+    samples = list(islice(sample_iterator, args.max_samples)) if args.max_samples is not None else list(sample_iterator)
     if not samples:
         raise SystemExit(f"No samples found in {args.data_dir}. Run scripts/download_voc_subset.py first.")
 

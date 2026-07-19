@@ -95,3 +95,19 @@ def test_asset_fetch_rejects_existing_file_with_wrong_hash(tmp_path: Path) -> No
         assert "SHA-256 mismatch" in str(error)
     else:
         raise AssertionError("source drift was accepted")
+
+
+def test_confirmatory_artifact_checksums_match_exact_file_set() -> None:
+    artifact_root = ROOT / "artifacts/confirmatory"
+    checksum_path = artifact_root / "CHECKSUMS.sha256"
+    rows = [line.split(maxsplit=1) for line in checksum_path.read_text(encoding="utf-8").splitlines() if line]
+    expected = {relative for _, relative in rows}
+    observed = {
+        path.relative_to(artifact_root).as_posix()
+        for path in artifact_root.rglob("*")
+        if path.is_file() and path.name not in {"CHECKSUMS.sha256", "README.md"}
+    }
+
+    assert observed == expected
+    for expected_hash, relative in rows:
+        assert sha256(artifact_root / relative) == expected_hash

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from itertools import islice
 import json
 import sys
 from dataclasses import replace
@@ -174,7 +175,7 @@ def main() -> None:
     parser.add_argument("--device", default=None)
     args = parser.parse_args()
 
-    samples = list(iter_samples(args.data_dir))[: args.max_samples]
+    samples = list(islice(iter_samples(args.data_dir), args.max_samples))
     predictor_and_device = load_sam(args)
     predictor = predictor_and_device[0] if predictor_and_device else None
     device = predictor_and_device[1] if predictor_and_device else "none"

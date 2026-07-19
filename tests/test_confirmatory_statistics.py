@@ -3,7 +3,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from scripts.analyze_confirmatory import holm_adjust
+import pandas as pd
+import pytest
+
+from scripts.analyze_confirmatory import holm_adjust, load_manifest, validate_metric_design
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,3 +34,14 @@ def test_cpu_summary_distinguishes_failure_aggregation() -> None:
     assert grabcut["num_failures"] == 8
     assert grabcut["mean_iou_success_only"] > grabcut["mean_iou_failure_zero"]
     assert grabcut["mean_iou_failure_zero"] == 0.6877666894409938
+
+
+def test_confirmatory_design_rejects_a_missing_method_row() -> None:
+    cpu = pd.read_csv(ROOT / "artifacts/confirmatory/cpu/metrics.csv", keep_default_na=False)
+    sam = pd.read_csv(ROOT / "artifacts/confirmatory/sam/metrics.csv", keep_default_na=False)
+    manifest = load_manifest(ROOT / "protocol/manifests/confirmatory_validation.jsonl")
+    protocol = json.loads((ROOT / "protocol/research_protocol.json").read_text(encoding="utf-8"))
+    partial_cpu = cpu.drop(cpu[(cpu["sample_id"] == "val_000000") & (cpu["method"] == "robust_superpixel")].index)
+
+    with pytest.raises(ValueError, match="exactly one row"):
+        validate_metric_design(partial_cpu, sam, manifest, protocol)

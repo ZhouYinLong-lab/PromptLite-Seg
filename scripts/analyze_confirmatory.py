@@ -16,6 +16,30 @@ sys.path.insert(0, str(ROOT / "src"))
 from promptseg.utils import write_csv
 
 
+CPU_REQUIRED_COLUMNS = {"sample_id", "class_name", "method", "status", "error", "iou", "dice", "latency_ms"}
+SAM_REQUIRED_COLUMNS = {
+    "sample_id",
+    "class_name",
+    "experiment",
+    "severity",
+    "condition",
+    "method",
+    "trial",
+    "iou",
+    "dice",
+    "sam_score",
+    "point_hit",
+    "box_iou",
+}
+SAM_ENSEMBLE_METHODS = {
+    "sam_single_noisy",
+    "sam_score_select",
+    "sam_consistency_medoid",
+    "sam_vote_consensus",
+    "sam_oracle_best",
+}
+
+
 def bootstrap_ci(values: np.ndarray, rng: np.random.Generator, n_boot: int, batch: int = 1000) -> tuple[float, float]:
     means: list[np.ndarray] = []
     for start in range(0, n_boot, batch):
@@ -81,6 +105,99 @@ def load_manifest(path: Path) -> pd.DataFrame:
     return frame[["sample_id", "class_name", "target_area", "target_area_quartile"]]
 
 
+def _require_columns(frame: pd.DataFrame, required: set[str], label: str) -> None:
+    missing = sorted(required - set(frame.columns))
+    if missing:
+        raise ValueError(f"{label} metrics are missing columns: {missing}")
+
+
+def validate_metric_design(
+    cpu: pd.DataFrame,
+    sam: pd.DataFrame,
+    manifest: pd.DataFrame,
+    protocol: dict,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Validate the complete frozen design before any aggregation or coercion."""
+
+    _require_columns(cpu, CPU_REQUIRED_COLUMNS, "CPU")
+    _require_columns(sam, SAM_REQUIRED_COLUMNS, "SAM")
+    sample_ids = manifest["sample_id"].astype(str).tolist()
+    sample_set = set(sample_ids)
+    class_lookup = dict(zip(manifest["sample_id"].astype(str), manifest["class_name"].astype(str)))
+    if set(cpu["sample_id"].astype(str)) != sample_set or set(sam["sample_id"].astype(str)) != sample_set:
+        raise ValueError("CPU, SAM, and frozen manifest sample IDs do not match")
+    for label, frame in (("CPU", cpu), ("SAM", sam)):
+        mismatched = frame[
+            frame["sample_id"].astype(str).map(class_lookup) != frame["class_name"].astype(str)
+        ]
+        if not mismatched.empty:
+            raise ValueError(f"{label} class labels do not match the frozen manifest")
+
+    cpu_methods = [
+        *protocol["methods"]["cpu_baselines"],
+        protocol["methods"]["proposed"],
+        *protocol["methods"]["ablations"],
+    ]
+    cpu_keys = list(zip(cpu["sample_id"].astype(str), cpu["method"].astype(str)))
+    expected_cpu = {(sample_id, method) for sample_id in sample_ids for method in cpu_methods}
+    if len(cpu_keys) != len(expected_cpu) or set(cpu_keys) != expected_cpu:
+        raise ValueError("CPU metrics do not contain exactly one row per frozen sample and method")
+    if set(cpu["status"].astype(str)) - {"ok", "error"}:
+        raise ValueError("CPU metrics contain an unknown status")
+    for metric in ("iou", "dice", "latency_ms"):
+        numeric = pd.to_numeric(cpu[metric], errors="coerce")
+        if numeric[cpu["status"] == "ok"].isna().any():
+            raise ValueError(f"CPU successful rows contain non-numeric {metric}")
+        if metric in {"iou", "dice"} and numeric[cpu["status"] == "error"].notna().any():
+            raise ValueError(f"CPU failed rows unexpectedly contain numeric {metric}")
+        cpu[metric] = numeric.fillna(0.0)
+
+    trials = int(protocol["methods"]["sam_confirmatory_trials_per_sample"])
+    expected_sam: set[tuple[str, str, str, str, str, int]] = set()
+    for sample_id in sample_ids:
+        expected_sam.update(
+            (sample_id, "modality", "clean", mode, "sam_vit_b", 0)
+            for mode in ("point_only", "box_only", "point_box")
+        )
+        expected_sam.update(
+            (sample_id, "noise_decomposition", "moderate", condition, "sam_single_prompt", trial)
+            for condition in ("point_noise", "box_noise")
+            for trial in range(trials)
+        )
+        expected_sam.update(
+            (sample_id, "uncertainty_ensemble", "moderate", "point_box_noise", method, trial)
+            for method in SAM_ENSEMBLE_METHODS
+            for trial in range(trials)
+        )
+    trial_values = pd.to_numeric(sam["trial"], errors="coerce")
+    if trial_values.isna().any() or not np.equal(trial_values, np.floor(trial_values)).all():
+        raise ValueError("SAM trial values must be integers")
+    sam["trial"] = trial_values.astype(int)
+    sam_keys = list(
+        zip(
+            sam["sample_id"].astype(str),
+            sam["experiment"].astype(str),
+            sam["severity"].astype(str),
+            sam["condition"].astype(str),
+            sam["method"].astype(str),
+            sam["trial"],
+        )
+    )
+    if len(sam_keys) != len(expected_sam) or set(sam_keys) != expected_sam:
+        raise ValueError("SAM metrics do not match the complete frozen condition/trial design")
+    for metric in ("iou", "dice", "sam_score"):
+        numeric = pd.to_numeric(sam[metric], errors="coerce")
+        if numeric.isna().any():
+            raise ValueError(f"SAM metrics contain non-numeric {metric}")
+        sam[metric] = numeric
+    for label, frame in (("CPU", cpu), ("SAM", sam)):
+        for metric in ("iou", "dice"):
+            valid = frame[metric].between(0.0, 1.0, inclusive="both")
+            if not valid.all():
+                raise ValueError(f"{label} metrics contain out-of-range {metric}")
+    return cpu, sam
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--cpu-metrics", type=Path, default=Path("outputs_confirmatory/cpu/metrics.csv"))
@@ -94,15 +211,16 @@ def main() -> None:
     parser.add_argument("--n-boot", type=int, default=20000)
     parser.add_argument("--n-perm", type=int, default=50000)
     parser.add_argument("--seed", type=int, default=20260719)
+    parser.add_argument("--protocol", type=Path, default=Path("protocol/research_protocol.json"))
     args = parser.parse_args()
+    if args.n_boot < 1 or args.n_perm < 1:
+        parser.error("--n-boot and --n-perm must be at least 1")
 
     cpu = pd.read_csv(args.cpu_metrics, keep_default_na=False)
-    cpu["iou"] = pd.to_numeric(cpu["iou"], errors="coerce").fillna(0.0)
-    cpu["dice"] = pd.to_numeric(cpu["dice"], errors="coerce").fillna(0.0)
-    sam = pd.read_csv(args.sam_metrics)
+    sam = pd.read_csv(args.sam_metrics, keep_default_na=False)
     manifest = load_manifest(args.manifest)
-    if set(cpu["sample_id"]) != set(manifest["sample_id"]) or set(sam["sample_id"]) != set(manifest["sample_id"]):
-        raise SystemExit("CPU, SAM, and frozen manifest sample IDs do not match")
+    protocol = json.loads(args.protocol.read_text(encoding="utf-8"))
+    cpu, sam = validate_metric_design(cpu, sam, manifest, protocol)
 
     rng = np.random.default_rng(args.seed)
     rows: list[dict] = []
@@ -149,6 +267,9 @@ def main() -> None:
         )
     )
     holm_adjust(rows)
+    expected_pairs = len(manifest)
+    if any(int(row["num_pairs"]) != expected_pairs for row in rows):
+        raise RuntimeError(f"Every primary hypothesis must contain exactly {expected_pairs} paired samples")
 
     cpu_summary = (
         cpu.groupby("method", as_index=False)

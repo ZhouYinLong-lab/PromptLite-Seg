@@ -30,3 +30,11 @@ def test_sam_requirements_extend_cpu_requirements() -> None:
 
     assert lines[0] == "-r requirements.txt"
     assert any(line.startswith("segment-anything") for line in lines[1:])
+
+
+def test_verified_cuda_requirements_pin_torch_builds() -> None:
+    lines = (ROOT / "requirements-sam-cu128.txt").read_text(encoding="utf-8").splitlines()
+
+    assert "-r requirements-sam.txt" in lines
+    assert "torch==2.11.0+cu128" in lines
+    assert "torchvision==0.26.0+cu128" in lines

@@ -16,6 +16,7 @@ from promptseg.dataset import Prompt
 from promptseg.sam import PROMPT_MODES, predict_sam
 from scripts.run_prompt_uncertainty_experiment import ENSEMBLE_METHODS, select_ensemble_predictions
 from scripts.run_robustness_experiment import evaluate_sam_prompt_pair
+from scripts.run_confirmatory_sam import expected_sample_keys, validate_checkpoint_payload
 
 
 class FakeSamPredictor:
@@ -133,6 +134,25 @@ def test_uncertainty_ensemble_covers_every_selection_branch() -> None:
 
 def test_prompt_mode_registry_is_stable() -> None:
     assert PROMPT_MODES == ("point_only", "box_only", "point_box")
+
+
+def test_confirmatory_checkpoint_rejects_stale_or_incomplete_rows() -> None:
+    with pytest.raises(RuntimeError, match="Legacy or malformed"):
+        validate_checkpoint_payload([], sample_id="val_000000", run_fingerprint="run-a", trials=1)
+
+    rows = [
+        {
+            "sample_id": "val_000000",
+            "experiment": experiment,
+            "condition": condition,
+            "method": method,
+            "trial": trial,
+        }
+        for experiment, condition, method, trial in expected_sample_keys(1)
+    ]
+    payload = {"run_fingerprint": "run-a", "sample_id": "val_000000", "rows": rows[:-1]}
+    with pytest.raises(RuntimeError, match="incomplete or duplicated"):
+        validate_checkpoint_payload(payload, sample_id="val_000000", run_fingerprint="run-a", trials=1)
 
 
 class FakeSamModel:

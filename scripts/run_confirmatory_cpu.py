@@ -22,6 +22,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from promptseg.algorithms import CONFIRMATORY_CPU_METHODS
 from promptseg.dataset import load_sample
 from promptseg.metrics import dice, iou
+from promptseg.protocol import dataset_fingerprint, git_is_dirty, manifest_sample_ids, sha256_file
 from promptseg.utils import write_csv
 
 
@@ -155,11 +156,32 @@ def main() -> None:
     parser.add_argument("--methods", nargs="+", choices=tuple(CONFIRMATORY_CPU_METHODS), default=None)
     parser.add_argument("--max-samples", type=int, default=None)
     parser.add_argument("--workers", type=int, default=min(8, os.cpu_count() or 1))
+    parser.add_argument("--protocol", type=Path, default=Path("protocol/research_protocol.json"))
+    parser.add_argument(
+        "--manifest",
+        type=Path,
+        default=Path("protocol/manifests/confirmatory_validation.jsonl"),
+    )
     args = parser.parse_args()
     if args.workers < 1:
         parser.error("--workers must be at least 1")
 
+    protocol = json.loads(args.protocol.read_text(encoding="utf-8"))
+    frozen_methods = [
+        *protocol["methods"]["cpu_baselines"],
+        protocol["methods"]["proposed"],
+        *protocol["methods"]["ablations"],
+    ]
     methods = args.methods or list(CONFIRMATORY_CPU_METHODS)
+    directories = sample_directories(args.data_dir, args.max_samples)
+    observed_ids = [path.name for path in directories]
+    expected_ids = manifest_sample_ids(args.manifest)
+    is_confirmatory = (
+        args.max_samples is None
+        and observed_ids == expected_ids
+        and methods == frozen_methods
+        and not git_is_dirty(ROOT)
+    )
     all_rows: list[dict] = []
     summaries: list[dict] = []
     args.output_dir.mkdir(parents=True, exist_ok=True)
@@ -171,12 +193,15 @@ def main() -> None:
         write_csv(args.output_dir / "summary.csv", summaries)
         print(json.dumps(summary, indent=2))
 
-    sample_counts = {summary["num_samples"] for summary in summaries}
     payload = {
         "git_commit": git_commit(),
+        "git_dirty": git_is_dirty(ROOT),
         "data_dir": str(args.data_dir),
-        "confirmatory": args.max_samples is None and sample_counts == {1449},
-        "expected_confirmatory_samples": 1449,
+        "dataset_sha256": dataset_fingerprint(directories),
+        "manifest_sha256": sha256_file(args.manifest),
+        "protocol_sha256": sha256_file(args.protocol),
+        "confirmatory": is_confirmatory,
+        "expected_confirmatory_samples": len(expected_ids),
         "max_samples": args.max_samples,
         "workers": args.workers,
         "methods": methods,

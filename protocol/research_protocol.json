@@ -97,7 +97,7 @@
     "src/promptseg/utils.py": "f1524dc374c4922454246435a42c2083ab5213e55e1732092070ad6e5587b7a0",
     "src/promptseg/prompts.py": "42803f89863557a3903bba2a1a7b71286a3aa16910516d5690d7c32e100a169f",
     "src/promptseg/sam.py": "96166ed24fba5b6ea8925dacfdb0ef033bc00dda9711fe8c2e131d250e7d343d",
-    "scripts/run_confirmatory_sam.py": "34508fdf0f18cd63061dee0adb7b7d3554f50971356a47d6dfdd98eb19f374d5"
+    "scripts/run_confirmatory_sam.py": "17c54930d4022ca6b027bec9b0b586cb41f6ce49873a816cb2f7c53b7e97b7bf"
   },
   "frozen_source_hash_canonicalization": "SHA-256 over UTF-8 bytes after CRLF-to-LF normalization",
   "reporting": {

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from itertools import islice
 import json
 import sys
 from dataclasses import replace
@@ -248,7 +249,7 @@ def main() -> None:
     if not args.checkpoint.exists():
         raise SystemExit(f"Missing SAM checkpoint: {args.checkpoint}")
 
-    samples = list(iter_samples(args.data_dir))[: args.max_samples]
+    samples = list(islice(iter_samples(args.data_dir), args.max_samples))
     if not samples:
         raise SystemExit(f"No samples found in {args.data_dir}.")
 

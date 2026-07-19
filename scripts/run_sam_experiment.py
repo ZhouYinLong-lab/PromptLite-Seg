@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from itertools import islice
 import json
 import sys
 from pathlib import Path
@@ -98,7 +99,7 @@ def main() -> None:
             "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth"
         )
 
-    samples = list(iter_samples(args.data_dir))[: args.max_samples]
+    samples = list(islice(iter_samples(args.data_dir), args.max_samples))
     if not samples:
         raise SystemExit(f"No samples found in {args.data_dir}.")
 

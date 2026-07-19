@@ -132,14 +132,16 @@ python scripts/run_confirmatory_cpu.py --workers 8
 
 ### 4. SAM CUDA 实验
 
-先按照 [PyTorch 官方安装器](https://pytorch.org/get-started/locally/) 安装与 GPU 匹配的 CUDA wheel，再安装冻结的官方 SAM 源码。不要安装 PyPI 上来源不明确的同名包。
+复现论文所用的 CUDA 12.8 环境可直接安装已固定版本的 PyTorch、TorchVision 和官方 SAM 源码：
 
 ```bash
-python -m pip install -r requirements-sam.txt
+python -m pip install -r requirements-sam-cu128.txt
 python scripts/fetch_protocol_assets.py --include-sam
 python scripts/run_confirmatory_sam.py --device cuda
 python scripts/analyze_confirmatory.py
 ```
+
+其他 CUDA 或 CPU 平台请先按照 [PyTorch 官方安装器](https://pytorch.org/get-started/locally/) 选择兼容 wheel，再运行 `python -m pip install -r requirements-sam.txt`。不要安装 PyPI 上来源不明确的同名包。
 
 本次验证环境为 Python 3.10、PyTorch 2.11.0+cu128、RTX 5070 Ti；完整 SAM 运行耗时 675 秒，峰值 CUDA allocated memory 约 2.77 GB。不同硬件的耗时与显存可能不同，但指标应由相同清单、提示和检查点确定。
 
