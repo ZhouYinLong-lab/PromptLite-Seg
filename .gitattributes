@@ -1,1 +1,7 @@
 * text=auto
+
+# Confirmatory checksums must describe identical bytes on every platform.
+artifacts/confirmatory/**/*.csv text eol=lf
+artifacts/confirmatory/**/*.json text eol=lf
+artifacts/confirmatory/**/*.md text eol=lf
+artifacts/confirmatory/CHECKSUMS.sha256 text eol=lf
