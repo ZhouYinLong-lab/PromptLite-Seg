@@ -60,6 +60,12 @@ ROBUST_MIN_SIZE_RATIO: float = 0.0008
 # Absolute minimum _clean object size in pixels.
 ROBUST_MIN_SIZE_ABS: int = 24
 
+# adaptive_superpixel --------------------------------------------------------
+# Scaling factor for image-size-aware SLIC segment count.
+ADAPTIVE_SEGMENTS_SCALE: float = 2.0
+ADAPTIVE_SEGMENTS_MIN: int = 80
+ADAPTIVE_SEGMENTS_MAX: int = 500
+
 # ---------------------------------------------------------------------------
 
 
@@ -109,11 +115,18 @@ def _component_touching_point(mask: np.ndarray, point: tuple[int, int]) -> np.nd
     return labels == props[idx].label
 
 
+def _remove_small(mask: np.ndarray, min_size: int) -> np.ndarray:
+    """Remove connected components ≤ *min_size* pixels, version-adaptive."""
+    # scikit-image < 0.26: min_size removes strictly smaller than N  → pass N+1
+    # scikit-image ≥ 0.26: max_size removes ≤ N                       → pass N
+    try:
+        return morphology.remove_small_objects(mask.astype(bool), max_size=min_size)
+    except TypeError:
+        return morphology.remove_small_objects(mask.astype(bool), min_size=min_size + 1)
+
+
 def _clean(mask: np.ndarray, point: tuple[int, int], min_size: int = 64) -> np.ndarray:
-    # scikit-image 0.25 removes components strictly smaller than ``min_size``.
-    # Using N + 1 preserves the 0.26 ``max_size=N`` behavior (remove size <= N)
-    # while retaining Python 3.10 support, which scikit-image 0.26 dropped.
-    mask = morphology.remove_small_objects(mask.astype(bool), min_size=min_size + 1)
+    mask = _remove_small(mask, min_size)
     mask = ndi.binary_fill_holes(mask)
     mask = morphology.closing(mask, morphology.disk(2))
     return _component_touching_point(mask, point)
@@ -296,6 +309,38 @@ def robust_superpixel_single_box(image: np.ndarray, prompt: Prompt) -> np.ndarra
     return robust_superpixel_variant(image, prompt, use_box_consensus=False)
 
 
+def adaptive_superpixel(image: np.ndarray, prompt: Prompt) -> np.ndarray:
+    """Robust superpixel with image-size-aware SLIC segment count.
+
+    Instead of a fixed 280 segments, this variant scales ``n_segments``
+    proportionally to ``sqrt(height * width)`` so that larger images get
+    finer superpixel resolution and smaller images use fewer, more
+    coherent segments.
+    """
+    h, w = image.shape[:2]
+    n_segments = max(
+        ADAPTIVE_SEGMENTS_MIN,
+        min(ADAPTIVE_SEGMENTS_MAX, int(np.sqrt(h * w) * ADAPTIVE_SEGMENTS_SCALE)),
+    )
+    bbox = prompt.bbox
+    ratios = BBOX_EXPANSION_RATIOS
+    color_seed = center_color(image, prompt)
+    context = _superpixel_context(image, n_segments=n_segments)
+    votes = [
+        _superpixel_once(
+            image, prompt, bbox_ratio=ratio,
+            use_spatial_prior=True, n_segments=n_segments, context=context,
+        )
+        for ratio in ratios
+    ]
+    superpixel_consensus = np.mean(votes, axis=0) >= 0.5
+    pred = color_seed | superpixel_consensus
+    return _clean(
+        pred, prompt.point,
+        min_size=max(ROBUST_MIN_SIZE_ABS, int(ROBUST_MIN_SIZE_RATIO * h * w)),
+    )
+
+
 METHODS = {
     "center_color": center_color,
     "robust_superpixel": robust_superpixel,
@@ -309,4 +354,5 @@ CONFIRMATORY_CPU_METHODS = {
     "robust_no_color_seed": robust_superpixel_no_color_seed,
     "robust_no_spatial_prior": robust_superpixel_no_spatial_prior,
     "robust_single_box": robust_superpixel_single_box,
+    "adaptive_superpixel": adaptive_superpixel,
 }

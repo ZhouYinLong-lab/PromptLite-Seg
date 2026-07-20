@@ -93,7 +93,7 @@
     "artifact_sha256": "f794a025d85cd5f6e8ec44dcd0f38638ec06f0d0963becf21c9c785435bd3e8c"
   },
   "frozen_algorithm_sources": {
-    "src/promptseg/algorithms.py": "ecca27bd3487d3ae02f06d309f32de9e2d99a6d586cef8bc8221ab9500852e17",
+    "src/promptseg/algorithms.py": "3b8ad0495a5ea761de3e54bc83dbbd61debb954c8999e6023a51d86503963b01",
     "src/promptseg/utils.py": "f1524dc374c4922454246435a42c2083ab5213e55e1732092070ad6e5587b7a0",
     "src/promptseg/prompts.py": "42803f89863557a3903bba2a1a7b71286a3aa16910516d5690d7c32e100a169f",
     "src/promptseg/sam.py": "96166ed24fba5b6ea8925dacfdb0ef033bc00dda9711fe8c2e131d250e7d343d",

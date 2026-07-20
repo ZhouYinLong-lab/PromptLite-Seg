@@ -91,7 +91,7 @@ def test_confirmatory_cpu_smoke_has_metrics_without_images(synthetic_data_dir: P
     assert result.returncode == 0, result.stderr
     summary = json.loads((output_dir / "summary.json").read_text(encoding="utf-8"))
     assert summary["confirmatory"] is False
-    assert len(summary["summaries"]) == 6
+    assert len(summary["summaries"]) == 7  # 6 original + adaptive_superpixel
     assert all(item["num_success"] == 1 for item in summary["summaries"])
     assert all(item["num_failures"] == 0 for item in summary["summaries"])
     assert not list(output_dir.rglob("*.png"))

@@ -3,8 +3,8 @@
   "hash": "SHA-256 over file bytes after CRLF-to-LF normalization",
   "files": {
     "protocol/dataset_fingerprints.json": "faed9bd7e4201c0de87baca44980ca146cb4b4db242ad9f1f5dadc51bee6f187",
-    "protocol/research_protocol.json": "0e7a5b131f18eb829a49596f915a7c857050d82d3d7a99840264385e61f9f1d4",
-    "src/promptseg/algorithms.py": "ecca27bd3487d3ae02f06d309f32de9e2d99a6d586cef8bc8221ab9500852e17",
+    "protocol/research_protocol.json": "1082164faafafd09b3d982c4d0c46489691a32ca8f6707963d63258c6a33632d",
+    "src/promptseg/algorithms.py": "3b8ad0495a5ea761de3e54bc83dbbd61debb954c8999e6023a51d86503963b01",
     "src/promptseg/dataset.py": "7dfd1bd359dd027d85919b7b83bcaf9355a1ab719b27401c24f4747390a413b9",
     "src/promptseg/metrics.py": "8b0c20aaa08d95fe373810a7957875fc623779c43fb79e301da74dc44216a3f9",
     "src/promptseg/prompts.py": "42803f89863557a3903bba2a1a7b71286a3aa16910516d5690d7c32e100a169f",
