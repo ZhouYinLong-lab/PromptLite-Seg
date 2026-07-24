@@ -32,8 +32,10 @@ robustness analysis on all 1,449 VOC validation samples. Each sample, target,
 and perturbation channel has 20 trials (289,800 rows total). It is secondary:
 it refines the operating range of H3 but does not relabel or replace H3.
 
-## ADE20K and human-prompt pilot
+## ADE20K transfer observation and human-prompt pilot
 
-`ade20k/` is a bounded engineering pilot, not full cross-dataset confirmation.
+`ade20k/` records a deterministic 200-sample evaluation drawn from all 2,000
+ADE20K validation rows after a complete stream scan. It is a bounded secondary
+transfer observation, not a full 2,000-sample cross-dataset confirmation.
 The human-prompt protocol and tooling contain no participant result; collection
 is locked until instructor/ethics approval and protocol freezing are recorded.

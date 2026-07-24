@@ -23,6 +23,7 @@ dist/
 tmp/
 UPGRADE_ROADMAP.md
 outputs_ade20k/
+outputs_ade20k_*/
 outputs_adaptive/
 outputs_analysis/
 data/human_annotations/

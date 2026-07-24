@@ -1,6 +1,6 @@
 {
-  "source_manifest_sha256": "0b61e0f292f5d8732df64b94a891abde717d7c3f25dca660b9e9dc5180d8a58a",
-  "metrics_csv_sha256": "7db90263c8a1599c58cd09a965d73450fa25c2b005323279a973511174a75e90",
-  "aggregate_summary_sha256": "f9f517aceeda8be0d49d84415025a1b2129b3373005e793443e381ceafa0d35b",
-  "command": "scripts/run_ade20k_cpu.py --mode pilot --max-rows 100 --max-eligible 10 --no-resume"
+  "source_manifest_sha256": "811a3425adc7ae0f8a59ecc315e15941a86e7b3e29bd356e84504c06d9faa52d",
+  "metrics_csv_sha256": "a390fd3523b0480e45d64f8a5acd0bb7d88b9632533bd6440da95b7ec00383f3",
+  "aggregate_summary_sha256": "6ffa48acb4d0f6f871f4ab43d57e6504aa4354d25169ae6448b7155daddb620e",
+  "command": "scripts\\run_ade20k_cpu.py --mode pilot --max-rows 2000 --max-eligible 200 --output-dir outputs_ade20k_200 --cache-dir data\\cache\\ade20k --methods center_color grabcut_point_box robust_superpixel robust_no_color_seed robust_no_spatial_prior robust_single_box adaptive_superpixel"
 }
