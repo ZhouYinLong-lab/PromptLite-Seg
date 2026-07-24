@@ -112,7 +112,7 @@
         "sam": "0c3f79e589ae995e29ad9f4c3358fb6fef08db9c56f1d91143d759487fb6b245"
       }
     },
-    "amendment": "Post-audit execution guards only; frozen hypotheses, methods, prompts, calibration, and statistical tests are unchanged."
+    "amendment": "Post-audit execution guards and confirmatory-runner default correction only; frozen hypotheses, six primary CPU methods, prompts, calibration, and statistical tests are unchanged. Adaptive Superpixel is available only as an explicit secondary run."
   },
   "reporting": {
     "required_strata": ["class_name", "target_area_quartile"],

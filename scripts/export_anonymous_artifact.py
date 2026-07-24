@@ -42,6 +42,10 @@ DEFAULT_BANNED = (
     "南京大学",
     ".git/",
 )
+REQUIRED_SECONDARY = (
+    "artifacts/secondary/README.md",
+    "artifacts/secondary/adaptive_summary.json",
+)
 
 
 def source_files() -> list[tuple[Path, str]]:
@@ -50,13 +54,21 @@ def source_files() -> list[tuple[Path, str]]:
         cwd=ROOT,
     )
     tracked = sorted(item.decode("utf-8") for item in tracked_output.split(b"\0") if item)
-    prefixes = ("src/promptseg/", "scripts/", "protocol/", "artifacts/confirmatory/", "tests/")
+    prefixes = (
+        "src/promptseg/",
+        "scripts/",
+        "protocol/",
+        "artifacts/confirmatory/",
+        "artifacts/secondary/",
+        "tests/",
+    )
     excluded = {"scripts/export_anonymous_artifact.py", "tests/test_anonymous_artifact.py"}
     selected = [
         name
         for name in tracked
         if name.startswith(prefixes) and name not in excluded
     ]
+    selected.extend(name for name in REQUIRED_SECONDARY if name not in selected)
     fixed = (
         "LICENSE",
         "THIRD_PARTY_NOTICES.md",

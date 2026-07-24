@@ -8,6 +8,8 @@ import sys
 
 import pytest
 
+from scripts.analyze_stratified import metric_value, row_succeeded
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -35,6 +37,22 @@ def test_analysis_scripts_start(script: str) -> None:
 
     assert result.returncode == 0, result.stderr
     assert "usage:" in result.stdout.lower()
+
+
+def test_stratified_analysis_scores_current_error_rows_as_zero() -> None:
+    error_row = {
+        "sample_id": "val_000001",
+        "method": "grabcut_point_box",
+        "status": "error",
+        "iou": "",
+        "dice": "",
+        "latency_ms": "12.5",
+    }
+
+    assert metric_value(error_row, "iou") == 0.0
+    assert metric_value(error_row, "dice") == 0.0
+    assert metric_value(error_row, "latency_ms") == 12.5
+    assert row_succeeded(error_row) is False
 
 
 @pytest.mark.parametrize(
@@ -91,7 +109,7 @@ def test_confirmatory_cpu_smoke_has_metrics_without_images(synthetic_data_dir: P
     assert result.returncode == 0, result.stderr
     summary = json.loads((output_dir / "summary.json").read_text(encoding="utf-8"))
     assert summary["confirmatory"] is False
-    assert len(summary["summaries"]) == 7  # 6 original + adaptive_superpixel
+    assert len(summary["summaries"]) == 6
     assert all(item["num_success"] == 1 for item in summary["summaries"])
     assert all(item["num_failures"] == 0 for item in summary["summaries"])
     assert not list(output_dir.rglob("*.png"))

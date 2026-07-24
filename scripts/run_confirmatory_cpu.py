@@ -183,7 +183,9 @@ def main() -> None:
         protocol["methods"]["proposed"],
         *protocol["methods"]["ablations"],
     ]
-    methods = args.methods or list(CONFIRMATORY_CPU_METHODS)
+    # The registry also retains the later adaptive method for explicit secondary
+    # runs. The no-argument confirmatory path must follow the six frozen methods.
+    methods = args.methods or frozen_methods
     directories = sample_directories(args.data_dir, args.max_samples)
     observed_ids = [path.name for path in directories]
     expected_ids = manifest_sample_ids(args.manifest)

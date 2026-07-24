@@ -5,11 +5,30 @@ import subprocess
 import sys
 import zipfile
 
-from pypdf import PdfWriter
+from pypdf import PdfReader, PdfWriter
 import pytest
 
 import scripts.export_anonymous_artifact as exporter
 from scripts.export_anonymous_artifact import ALLOWED_SUFFIXES, DEFAULT_BANNED, build_archive
+
+
+def test_anonymous_report_meets_course_page_and_blinding_rules() -> None:
+    pdf_path = Path("reports/report_anonymous.pdf")
+    reader = PdfReader(pdf_path)
+    page_text = [page.extract_text() or "" for page in reader.pages]
+    reference_pages = [
+        page_number
+        for page_number, text in enumerate(page_text, start=1)
+        if "References" in text
+    ]
+
+    assert reference_pages, "The anonymous report has no References boundary"
+    assert reference_pages[0] - 1 <= 7, "Main text exceeds the seven-page limit"
+    assert "acknowledg" not in "\n".join(page_text[: reference_pages[0] - 1]).lower()
+    assert not exporter.identity_hits(
+        exporter.pdf_text_and_metadata(pdf_path),
+        DEFAULT_BANNED,
+    )
 
 
 def test_anonymous_export_has_no_identity_data_or_git_history(tmp_path: Path) -> None:
@@ -22,6 +41,7 @@ def test_anonymous_export_has_no_identity_data_or_git_history(tmp_path: Path) ->
         git_prefix = "." + "git/"
         assert "README.md" in names
         assert "reports/report_anonymous.pdf" in names
+        assert "artifacts/secondary/adaptive_summary.json" in names
         assert not any(name.startswith(git_prefix) for name in names)
         assert not any(".egg-info/" in name for name in names)
         assert "scripts/export_anonymous_artifact.py" not in names

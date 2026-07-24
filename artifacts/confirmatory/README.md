@@ -4,6 +4,11 @@ This directory contains metrics and statistical summaries only. It contains no
 VOC image, semantic mask, target mask, model checkpoint, or image-bearing
 visualization.
 
+This frozen artifact covers the pre-specified H1--H3 analyses and the six CPU
+methods present in the historical run. The later Adaptive Superpixel comparison
+is explicitly recorded as a post-confirmatory secondary analysis in
+[`../secondary/`](../secondary/README.md).
+
 `CHECKSUMS.sha256` uses SHA-256 after CRLF-to-LF normalization for these
 text-only result files, so verification is stable across Git checkouts on
 Windows, Linux, and macOS.
@@ -45,7 +50,9 @@ python scripts/prepare_voc_from_manifest.py \
   --parquet data/cache/pascal_voc_2012_val.parquet \
   --output-dir data/voc_validation
 
-python scripts/run_confirmatory_cpu.py
+python scripts/run_confirmatory_cpu.py --methods \
+  center_color grabcut_point_box robust_superpixel \
+  robust_no_color_seed robust_no_spatial_prior robust_single_box
 python scripts/run_confirmatory_sam.py
 python scripts/analyze_confirmatory.py
 ```

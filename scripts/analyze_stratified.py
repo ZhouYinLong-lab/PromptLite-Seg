@@ -26,6 +26,20 @@ def read_jsonl(path: Path) -> list[dict]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
 
 
+def metric_value(row: dict[str, str], key: str) -> float:
+    """Parse a metric, scoring an explicitly failed row as zero."""
+    raw = row.get(key, "")
+    return float(raw) if raw is not None and raw.strip() else 0.0
+
+
+def row_succeeded(row: dict[str, str]) -> bool:
+    """Support both the current ``status`` field and the legacy ``success`` field."""
+    status = row.get("status", "").strip().lower()
+    if status:
+        return status == "ok"
+    return row.get("success", "True").strip().lower() == "true"
+
+
 def main() -> None:
     metrics_path = ROOT / "artifacts" / "confirmatory" / "cpu" / "metrics.csv"
     manifest_path = ROOT / "protocol" / "manifests" / "confirmatory_validation.jsonl"
@@ -51,11 +65,13 @@ def main() -> None:
     for row in all_rows:
         sid = row.get("sample_id", "")
         method = row.get("method", "")
+        if not sid or not method:
+            raise ValueError("Every metric row must contain sample_id and method")
         by_sample[sid][method] = {
-            "iou": float(row.get("iou", 0)),
-            "dice": float(row.get("dice", 0)),
-            "success": row.get("success", "True") == "True",
-            "latency_ms": float(row.get("latency_ms", 0)),
+            "iou": metric_value(row, "iou"),
+            "dice": metric_value(row, "dice"),
+            "success": row_succeeded(row),
+            "latency_ms": metric_value(row, "latency_ms"),
         }
 
     # Enrich with manifest metadata
@@ -217,12 +233,11 @@ def main() -> None:
         ar_bins = np.percentile(ar_vals, [25, 50, 75])
         print(f"AR quartile boundaries: {[round(b, 2) for b in ar_bins]}")
         for qi, (lo, hi, label) in enumerate([
-            (0, ar_bins[0], "Tall (AR < {:.2f})"),
+            (0, ar_bins[0], f"Tall (AR < {ar_bins[0]:.2f})"),
             (ar_bins[0], ar_bins[1], "Slightly tall"),
             (ar_bins[1], ar_bins[2], "Slightly wide"),
-            (ar_bins[2], 999, "Wide (AR > {:.2f})"),
+            (ar_bins[2], float("inf"), f"Wide (AR >= {ar_bins[2]:.2f})"),
         ]):
-            label_str = label.format(lo if qi == 0 else hi)
             vals = {m: [] for m in methods}
             for sid, md in by_sample.items():
                 if sid in manifest_samples:
@@ -235,11 +250,11 @@ def main() -> None:
                         bw, bh = x1 - x0, y1 - y0
                         ar = bw / bh if bh > 0 else 1.0
                         if lo <= ar < hi or (qi == 3 and ar >= lo):
-                                for m in methods:
-                                    if m in md:
-                                        vals[m].append(md[m]["iou"])
+                            for m in methods:
+                                if m in md:
+                                    vals[m].append(md[m]["iou"])
             n = len(vals[methods[0]]) if methods else 0
-            line = f"{label_str:<28s} {n:>5d}"
+            line = f"{label:<28s} {n:>5d}"
             for m in methods:
                 if vals[m]:
                     line += f" {np.mean(vals[m]):>21.4f}"
