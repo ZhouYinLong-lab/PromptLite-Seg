@@ -44,6 +44,20 @@ from promptseg.utils import write_csv
 CHECKPOINT_SHA256 = "ec2df62732614e57411cdcf32a23ffdf28910380d03139ee0f4fcbe91eb8c912"
 
 
+def _select_best_masks(
+    masks: np.ndarray,
+    scores: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Select one complete 2-D mask per batch item using its highest score."""
+    if masks.ndim != 4 or scores.ndim != 2:
+        raise ValueError("Expected masks [B,C,H,W] and scores [B,C]")
+    if masks.shape[:2] != scores.shape:
+        raise ValueError("Mask and score batch/candidate dimensions must match")
+    best = np.argmax(scores, axis=1)
+    batch = np.arange(masks.shape[0])
+    return masks[batch, best], scores[batch, best]
+
+
 def evaluate_sample_sam(
     predictor,
     sample,
@@ -193,10 +207,9 @@ def evaluate_sample_sam_batched(
                 multimask_output=True,
                 return_logits=False,
             )
-        best = scores.argmax(dim=1)
-        indices = torch.arange(len(chunk), device=best.device)
-        selected_masks = masks[indices, best].detach().cpu().numpy().astype(bool)
-        selected_scores = scores[indices, best].detach().cpu().numpy()
+        masks_np = masks.detach().cpu().numpy().astype(bool)
+        scores_np = scores.detach().cpu().numpy()
+        selected_masks, selected_scores = _select_best_masks(masks_np, scores_np)
         for (metadata, _), prediction, score in zip(
             chunk, selected_masks, selected_scores
         ):

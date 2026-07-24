@@ -20,7 +20,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from promptseg.prompts import bbox_iou, perturb_prompt, point_hits_target
 from scripts.analyze_sensitivity import _paired_bootstrap_ci, _sample_level_aggregate
-from scripts.run_sensitivity_sam import evaluate_sample_sam_batched
+from scripts.run_sensitivity_sam import _select_best_masks
 
 
 # ---------------------------------------------------------------------------
@@ -179,48 +179,15 @@ def test_sample_level_aggregate_filters_sample_id() -> None:
 
 
 def test_batched_sam_selects_complete_two_dimensional_mask() -> None:
-    import torch
-    from promptseg.dataset import Prompt
-
-    class IdentityTransform:
-        @staticmethod
-        def apply_coords(coords, _shape):
-            return coords
-
-        @staticmethod
-        def apply_boxes(boxes, _shape):
-            return boxes
-
-    class FakePredictor:
-        device = torch.device("cpu")
-        transform = IdentityTransform()
-
-        def set_image(self, image):
-            self.image_shape = image.shape[:2]
-
-        def predict_torch(self, *, point_coords, **_kwargs):
-            batch = point_coords.shape[0]
-            masks = torch.zeros((batch, 3, 8, 8), dtype=torch.bool)
-            masks[:, 1, 2:6, 2:6] = True
-            scores = torch.tensor([[0.1, 0.9, 0.2]]).repeat(batch, 1)
-            return masks, scores, torch.zeros((batch, 3, 8, 8))
-
-    sample = type("Sample", (), {})()
-    sample.sample_id = "sample"
-    sample.image = np.zeros((8, 8, 3), dtype=np.uint8)
-    sample.mask = np.zeros((8, 8), dtype=bool)
-    sample.mask[2:6, 2:6] = True
-    sample.prompt = Prompt(
-        point=(3, 3), bbox=(2, 2, 6, 6), label=0, class_name="test"
-    )
-    calibrated = {
-        "0.9": {"point": {"scale": 0.0}, "box": {"scale": 0.0}}
-    }
-    rows = evaluate_sample_sam_batched(
-        FakePredictor(), sample, calibrated, "test", trials=1, batch_size=2
-    )
-    assert len(rows) == 2
-    assert all(float(row["iou"]) == pytest.approx(1.0) for row in rows)
+    masks = np.zeros((2, 3, 8, 8), dtype=bool)
+    masks[0, 1, 2:6, 2:6] = True
+    masks[1, 2, 1:7, 1:7] = True
+    scores = np.asarray([[0.1, 0.9, 0.2], [0.2, 0.3, 0.8]])
+    selected, selected_scores = _select_best_masks(masks, scores)
+    assert selected.shape == (2, 8, 8)
+    assert selected[0].sum() == 16
+    assert selected[1].sum() == 36
+    assert selected_scores.tolist() == pytest.approx([0.9, 0.8])
 
 
 # ---------------------------------------------------------------------------
