@@ -1,0 +1,60 @@
+{
+  "status": "secondary_post_confirmatory",
+  "included_in_primary_hypotheses": false,
+  "dataset": "PASCAL VOC 2012 validation",
+  "num_samples": 1449,
+  "method": "adaptive_superpixel",
+  "baseline": "robust_superpixel_fixed_280",
+  "adaptive": {
+    "mean_iou": 0.6117468507897431,
+    "median_iou": 0.628626228722129,
+    "mean_dice": 0.740980785966029,
+    "failures": 0,
+    "median_latency_ms": 199.33
+  },
+  "baseline_rerun": {
+    "mean_iou": 0.6043592818179652,
+    "median_iou": 0.6139270415707556,
+    "mean_dice": 0.7344780302672668,
+    "failures": 0,
+    "median_latency_ms": 198.04
+  },
+  "paired_delta_iou": {
+    "mean": 0.007387568971777923,
+    "ci95": [
+      0.005272241118427397,
+      0.00956840767228865
+    ],
+    "bootstrap_replicates": 20000,
+    "seed": 20260720
+  },
+  "target_area_quartile_delta_iou": [
+    {
+      "quartile": "Q1",
+      "n": 363,
+      "mean_delta": 0.01453383408
+    },
+    {
+      "quartile": "Q2",
+      "n": 362,
+      "mean_delta": 0.00589575
+    },
+    {
+      "quartile": "Q3",
+      "n": 362,
+      "mean_delta": 0.00540696
+    },
+    {
+      "quartile": "Q4",
+      "n": 362,
+      "mean_delta": 0.00369399
+    }
+  ],
+  "interpretation": "Target-area quartiles are a secondary diagnostic. The schedule uses image dimensions rather than target area, so the trend is supporting rather than causal evidence.",
+  "provenance": {
+    "manifest_sha256": "7b89d688548708a7dca6ede27824294c6280710e7078e56b45ab53f70ef1fade",
+    "local_metrics_sha256": "43492c4d66ea44196ba07bf835bb1291466fbe04b93f39c0758a78fd8e05be0c",
+    "algorithm_sha256": "e210884cb4c853f93337e9eb871f4b6f1efbcfddac97d8cf35760dc69c160c2d",
+    "runner_sha256": "4ac823907af6cc53fafa6da4b60db202672e14796e8c0aea3e3184d1865b2dc6"
+  }
+}

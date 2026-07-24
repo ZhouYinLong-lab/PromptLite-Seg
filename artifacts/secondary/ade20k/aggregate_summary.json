@@ -1,0 +1,133 @@
+{
+  "status": "secondary",
+  "experiment": "ade20k_cross_dataset_cpu",
+  "mode": "pilot",
+  "rows_scanned": 100,
+  "eligible_rows_in_stream": 100,
+  "selected_samples": 10,
+  "evaluated_samples": 10,
+  "excluded_count": 0,
+  "exclusion_reasons": {},
+  "min_mask_area": 256,
+  "methods": [
+    "center_color",
+    "grabcut_point_box",
+    "robust_superpixel",
+    "robust_no_color_seed",
+    "robust_no_spatial_prior",
+    "robust_single_box"
+  ],
+  "has_adaptive": false,
+  "frozen_method_summary_applies": true,
+  "stream_manifest_sha256": "0b61e0f292f5d8732df64b94a891abde717d7c3f25dca660b9e9dc5180d8a58a",
+  "metrics_csv_sha256": "7db90263c8a1599c58cd09a965d73450fa25c2b005323279a973511174a75e90",
+  "run_fingerprint": "7559056b74bcb3d62901b668fe209e4f96bc241e28179bfe5b092350d2c08af1",
+  "completed_before_resume": 0,
+  "eval_seconds": 92.3,
+  "run_config": {
+    "schema_version": 1,
+    "mode": "pilot",
+    "min_mask_area": 256,
+    "manifest_sha256": "0b61e0f292f5d8732df64b94a891abde717d7c3f25dca660b9e9dc5180d8a58a",
+    "method_names": [
+      "center_color",
+      "grabcut_point_box",
+      "robust_superpixel",
+      "robust_no_color_seed",
+      "robust_no_spatial_prior",
+      "robust_single_box"
+    ],
+    "seed": 20260720,
+    "selected_sample_ids": [
+      "ADE_val_00001028",
+      "ADE_val_00001030",
+      "ADE_val_00001037",
+      "ADE_val_00001040",
+      "ADE_val_00000240",
+      "ADE_val_00001394",
+      "ADE_val_00000449",
+      "ADE_val_00000497",
+      "ADE_val_00000886",
+      "ADE_val_00001043"
+    ]
+  },
+  "environment": {
+    "python": "3.13.12",
+    "platform": "Windows-11-10.0.26200-SP0"
+  },
+  "summaries": [
+    {
+      "method": "center_color",
+      "num_samples": 10,
+      "num_failures": 0,
+      "mean_iou": 0.4496976302699854,
+      "median_iou": 0.4513846329484731,
+      "mean_dice": 0.6064074282081025,
+      "median_dice": 0.6202676148868655,
+      "median_latency_ms": 26.08,
+      "p95_latency_ms": 174.59699999999978,
+      "total_seconds": 0.55492
+    },
+    {
+      "method": "grabcut_point_box",
+      "num_samples": 10,
+      "num_failures": 0,
+      "mean_iou": 0.4320723866264677,
+      "median_iou": 0.38555462089765047,
+      "mean_dice": 0.5309099048099165,
+      "median_dice": 0.5562194361611285,
+      "median_latency_ms": 2252.565,
+      "p95_latency_ms": 15866.866999999984,
+      "total_seconds": 49.304109999999994
+    },
+    {
+      "method": "robust_superpixel",
+      "num_samples": 10,
+      "num_failures": 0,
+      "mean_iou": 0.5724934594461181,
+      "median_iou": 0.6318620544326674,
+      "mean_dice": 0.7167764997642012,
+      "median_dice": 0.7743038446819307,
+      "median_latency_ms": 294.775,
+      "p95_latency_ms": 2323.6874999999973,
+      "total_seconds": 7.1836899999999995
+    },
+    {
+      "method": "robust_no_color_seed",
+      "num_samples": 10,
+      "num_failures": 0,
+      "mean_iou": 0.3918306112402076,
+      "median_iou": 0.3920490963835863,
+      "mean_dice": 0.5446337398327408,
+      "median_dice": 0.5629288367878172,
+      "median_latency_ms": 272.83500000000004,
+      "p95_latency_ms": 2160.6124999999975,
+      "total_seconds": 6.65786
+    },
+    {
+      "method": "robust_no_spatial_prior",
+      "num_samples": 10,
+      "num_failures": 0,
+      "mean_iou": 0.5483625804362751,
+      "median_iou": 0.5924270625388086,
+      "mean_dice": 0.6972118779931158,
+      "median_dice": 0.7440082999330948,
+      "median_latency_ms": 291.95000000000005,
+      "p95_latency_ms": 2338.028999999997,
+      "total_seconds": 7.191339999999999
+    },
+    {
+      "method": "robust_single_box",
+      "num_samples": 10,
+      "num_failures": 0,
+      "mean_iou": 0.5709476378090442,
+      "median_iou": 0.626244459609905,
+      "mean_dice": 0.7155778885358937,
+      "median_dice": 0.7701324149696498,
+      "median_latency_ms": 283.605,
+      "p95_latency_ms": 2257.6319999999973,
+      "total_seconds": 6.951059999999999
+    }
+  ],
+  "stream_complete": false
+}

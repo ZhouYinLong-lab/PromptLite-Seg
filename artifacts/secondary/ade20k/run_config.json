@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "mode": "pilot",
+  "min_mask_area": 256,
+  "manifest_sha256": "0b61e0f292f5d8732df64b94a891abde717d7c3f25dca660b9e9dc5180d8a58a",
+  "method_names": [
+    "center_color",
+    "grabcut_point_box",
+    "robust_superpixel",
+    "robust_no_color_seed",
+    "robust_no_spatial_prior",
+    "robust_single_box"
+  ],
+  "seed": 20260720,
+  "selected_sample_ids": [
+    "ADE_val_00001028",
+    "ADE_val_00001030",
+    "ADE_val_00001037",
+    "ADE_val_00001040",
+    "ADE_val_00000240",
+    "ADE_val_00001394",
+    "ADE_val_00000449",
+    "ADE_val_00000497",
+    "ADE_val_00000886",
+    "ADE_val_00001043"
+  ]
+}

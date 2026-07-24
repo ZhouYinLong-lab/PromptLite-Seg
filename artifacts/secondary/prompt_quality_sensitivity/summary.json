@@ -1,0 +1,34 @@
+{
+  "status": "secondary",
+  "experiment": "prompt_quality_sensitivity",
+  "is_synthetic": false,
+  "evaluation_complete": true,
+  "num_samples": 1449,
+  "num_rows": 289800,
+  "expected_rows": 289800,
+  "failure_rows": 0,
+  "trials_per_condition": 20,
+  "quality_targets": [
+    "0.9",
+    "0.8",
+    "0.7",
+    "0.6",
+    "0.5"
+  ],
+  "conditions": [
+    "point_noise",
+    "box_noise"
+  ],
+  "protocol_sha256": "c732d0d97e27ec735decf2790d2b5b28abf218ddda86e61cd422085486f127dc",
+  "metrics_sha256": "3b4ba4dd29d8ef01ab2424e20310a38e335b862b561bc46198c39e4ca683653a",
+  "run_fingerprint": "46ebb51276f149dd8137e850ccb2231d489e7e64366f5412d32ba4a4136e2dd4",
+  "completed_before_resume": 0,
+  "dataset_sha256": "9cc5140ce4283809f668ff87dc3d7efc13b76b693da2f43d7c42a1d7b3f90c9b",
+  "git_commit": "540d942812924a31cf6a4dcaaf81cd12ffd86dad",
+  "git_dirty": true,
+  "environment": {
+    "python": "3.10.20",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "cuda_available": true
+  }
+}

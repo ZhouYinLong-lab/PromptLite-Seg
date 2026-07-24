@@ -1,0 +1,89 @@
+{
+  "status": "secondary",
+  "analysis_type": "multi_quality_sensitivity_curve",
+  "is_synthetic": false,
+  "num_samples_analyzed": 1449,
+  "expected_trials_per_condition": 20,
+  "incomplete_sample_target_pairs": 0,
+  "analysis_complete": true,
+  "quality_targets": [
+    "0.9",
+    "0.8",
+    "0.7",
+    "0.6",
+    "0.5"
+  ],
+  "disclaimer": "Numeric observable matching (point hit rate vs box IoU) is a calibration convenience and does NOT imply human-perceptual equivalence. This is a robustness/sensitivity analysis, not a primary hypothesis test. No primary p-values are reported and H3 is not relabelled.",
+  "curve_points": [
+    {
+      "quality_target": "0.9",
+      "sample_count": 1449,
+      "failure_count": 0,
+      "mean_point_iou": 0.8395263223257419,
+      "mean_box_iou": 0.8411180126293996,
+      "mean_point_quality": 0.8909247757073844,
+      "mean_box_quality": 0.8956634918219463,
+      "paired_delta_mean": -0.0015916903036576962,
+      "paired_delta_ci_lower": -0.004120465084541067,
+      "paired_delta_ci_upper": 0.0009427415027605258,
+      "interpretation": "box_noise_IoU > point_noise_IoU"
+    },
+    {
+      "quality_target": "0.8",
+      "sample_count": 1449,
+      "failure_count": 0,
+      "mean_point_iou": 0.8306004753278122,
+      "mean_box_iou": 0.8068253062456866,
+      "mean_point_quality": 0.7858868184955141,
+      "mean_box_quality": 0.8005423003795721,
+      "paired_delta_mean": 0.023775169082125604,
+      "paired_delta_ci_lower": 0.0200614423757764,
+      "paired_delta_ci_upper": 0.02751319016218082,
+      "interpretation": "box_noise_IoU < point_noise_IoU"
+    },
+    {
+      "quality_target": "0.7",
+      "sample_count": 1449,
+      "failure_count": 0,
+      "mean_point_iou": 0.8217189570393375,
+      "mean_box_iou": 0.7461645216701174,
+      "mean_point_quality": 0.6826086956521739,
+      "mean_box_quality": 0.6989283482401656,
+      "paired_delta_mean": 0.07555443536922016,
+      "paired_delta_ci_lower": 0.07028664526052451,
+      "paired_delta_ci_upper": 0.08087664791235334,
+      "interpretation": "box_noise_IoU < point_noise_IoU"
+    },
+    {
+      "quality_target": "0.6",
+      "sample_count": 1449,
+      "failure_count": 0,
+      "mean_point_iou": 0.8133067128019323,
+      "mean_box_iou": 0.6635939457556936,
+      "mean_point_quality": 0.5748447204968944,
+      "mean_box_quality": 0.5981166473084886,
+      "paired_delta_mean": 0.1497127670462388,
+      "paired_delta_ci_lower": 0.1430248579874051,
+      "paired_delta_ci_upper": 0.15634306108954452,
+      "interpretation": "box_noise_IoU < point_noise_IoU"
+    },
+    {
+      "quality_target": "0.5",
+      "sample_count": 1449,
+      "failure_count": 0,
+      "mean_point_iou": 0.802366922153209,
+      "mean_box_iou": 0.569981327225673,
+      "mean_point_quality": 0.4697377501725328,
+      "mean_box_quality": 0.49817991300897174,
+      "paired_delta_mean": 0.23238559492753624,
+      "paired_delta_ci_lower": 0.2245878791994479,
+      "paired_delta_ci_upper": 0.24017550107919253,
+      "interpretation": "box_noise_IoU < point_noise_IoU"
+    }
+  ],
+  "bootstrap_config": {
+    "n_bootstrap": 10000,
+    "seed": 20260724,
+    "ci_level": 0.95
+  }
+}

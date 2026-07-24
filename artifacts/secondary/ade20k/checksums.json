@@ -1,0 +1,6 @@
+{
+  "source_manifest_sha256": "0b61e0f292f5d8732df64b94a891abde717d7c3f25dca660b9e9dc5180d8a58a",
+  "metrics_csv_sha256": "7db90263c8a1599c58cd09a965d73450fa25c2b005323279a973511174a75e90",
+  "aggregate_summary_sha256": "f9f517aceeda8be0d49d84415025a1b2129b3373005e793443e381ceafa0d35b",
+  "command": "scripts/run_ade20k_cpu.py --mode pilot --max-rows 100 --max-eligible 10 --no-resume"
+}
