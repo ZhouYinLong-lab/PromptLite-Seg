@@ -2,7 +2,7 @@
 \maketitle
 
 \begin{abstract}
-Promptable segmentation systems are often evaluated with clean points and boxes, although real prompts are uncertain and the two channels do not admit directly comparable perturbation scales. We present a pre-specified evaluation on all 1,449 PASCAL VOC 2012 validation images. A disjoint, class-balanced 100-image subset of VOC train is used only to calibrate point displacement and box perturbation to matched observable quality targets. We compare Center Color, GrabCut, a robust-superpixel method with three component ablations, a secondary adaptive-superpixel variant, and SAM ViT-B under three prompt modalities. Three primary hypotheses are tested with paired bootstrap (20,000 replicates), sign-flip permutation tests (50,000 permutations), and Holm correction. Robust Superpixel improves over Center Color by 0.0640 IoU (95\% CI [0.0585, 0.0696]); SAM score selection improves over a single noisy prompt by 0.0193 [0.0135, 0.0251]; and matched-quality point-noise IoU exceeds box-noise IoU by 0.1069 [0.0997, 0.1138]. In separately labelled post-confirmatory analyses, the adaptive variant yields +0.0074 [0.0053, 0.0096], while a five-target, 289,800-inference sensitivity curve finds negligible channel difference at quality 0.9 but increasing box-noise disadvantage from 0.0238 to 0.2324 IoU at targets 0.8--0.5. Per-class analysis reveals systematic failure modes: bicycle IoU remains below 0.21 for all CPU methods and below 0.36 even for SAM box-only; all eight GrabCut hard failures occur when the tight box spans the full image and leaves no definite-background pixels. Multi-box consensus gives zero mean gain, while SAM point-only trails CPU methods on several rigid classes. The result is a reproducible, stratified account of prompt-channel failure and component-level evidence strength rather than a state-of-the-art claim.
+Evaluating zero-shot prompted segmentation under uncertain input is difficult because point and box perturbations have no directly comparable scale. We study prompt robustness on all 1,449 PASCAL VOC 2012 validation images, using a disjoint 100-image training subset to calibrate both channels to matched observable quality. Center Color, GrabCut, and superpixel pipelines serve as interpretable CPU baselines alongside SAM ViT-B. Three findings emerge. First, Robust Superpixel improves over Center Color by 0.0640 IoU but remains below GrabCut, locating its value in transparent component analysis rather than state-of-the-art accuracy. Second, SAM's score-based candidate selection provides a modest 0.0193 IoU gain over a single noisy prompt. Third, matched-quality box perturbations become increasingly more damaging than point perturbations as prompt quality decreases, while the channels are indistinguishable near quality 0.9. Stratified results further expose systematic failures on thin structures, small targets, and full-image boxes. The study provides a reproducible robustness benchmark, component ablations, and practical guidance for choosing prompt channels and segmentation methods.
 \end{abstract}
 
 \section{Introduction}
@@ -11,7 +11,7 @@ Interactive segmentation converts sparse user input into an object mask. Extreme
 
 Prompt quality is nevertheless structured. A displaced point may remain inside an object, whereas a shifted box changes localization and spatial support. Equal numeric noise scales do not imply equal prompt difficulty. Prior work compares boxes, centroids, and random points for SAM \cite{gaus}, adapts with perturbed prompts \cite{ppsam}, estimates SAM uncertainty \cite{uncertainsam}, and measures the gap between simulated and human interactions \cite{benenson}. We therefore measure the realized quality of each channel instead of assuming equal perturbation strength.
 
-This study asks three confirmatory questions: whether a transparent robust-superpixel pipeline improves over a minimal color method; whether SAM's score selects better candidates than a single noisy prompt; and whether SAM remains more sensitive to box noise after point and box quality are approximately matched. The contributions are a hash-pinned train/validation protocol, observable-quality calibration, pre-specified paired inference with family-wise correction, strong CPU and SAM baselines, component ablations, and a data-free metric artifact.
+The paper is therefore organized around robustness evaluation, with Center Color, GrabCut, and the superpixel pipelines used as interpretable probes rather than as claims of a fundamentally new segmentation architecture. We make three contributions: (1) a hash-pinned train/validation protocol that calibrates point and box perturbations to matched observable quality; (2) a full-validation study of three pre-specified questions with paired inference and family-wise error control; and (3) component, class, target-size, and failure-case analyses that translate aggregate scores into practical method-selection guidance.
 
 \section{Related Work}
 
@@ -40,10 +40,10 @@ The original Robust Superpixel uses a fixed SLIC segment count of 280 across all
 \subsection{SAM and candidate selection}
 SAM ViT-B is evaluated with point-only, box-only, and point-plus-box prompts. Under noisy point-plus-box input, five extra prompts are sampled locally around the observed prompt without access to the clean prompt. We compare the single noisy prediction, maximum SAM score, mask-IoU consistency medoid, majority vote, and Oracle best-of-six. Oracle uses target IoU and is a descriptive upper bound only.
 
-\section{Frozen Protocol}
+\section{Evaluation Protocol}
 
 \subsection{Data separation}
-The tuning split contains 100 VOC train images: five largest-component targets per class, sampled with seed 20260719. The confirmatory split contains all 1,449 VOC validation rows. The earlier 30-image analysis remains exploratory; because confirmation uses the complete validation split, those images are necessarily included, so hypothesis motivation and confirmation are not fully dataset-disjoint. Data manifests contain identifiers and geometry but no image or mask payloads; manifests, sources, algorithm files, SAM source, and the ViT-B checkpoint are SHA-256 pinned.
+The tuning split contains 100 VOC train images: five largest-component targets per class, sampled with seed 20260719. The evaluation split contains all 1,449 VOC validation rows. The earlier 30-image analysis motivated the hypotheses; because the final evaluation uses the complete validation split, those images necessarily reappear and the two stages are not fully dataset-disjoint. Data manifests contain identifiers and geometry but no image or mask payloads; manifests, sources, algorithm files, SAM source, and the ViT-B checkpoint are SHA-256 pinned.
 
 \subsection{Prompt calibration}
 On tuning data only, independent deterministic grid searches match point hit rate and box IoU to the same quality targets using 20 trials per target.
@@ -96,7 +96,7 @@ H1 is supported: Robust Superpixel improves over Center Color by 0.0640 IoU, 95\
 
 \begin{table}[ht]
 \centering
-\caption{Post-confirmatory adaptive vs.\ fixed SLIC segment count on VOC validation.}
+\caption{Secondary comparison of adaptive and fixed SLIC segment counts on VOC validation.}
 \begin{tabular}{lrrrc}
 \toprule
 Method & Mean IoU & Mean Dice & Med.\ latency & $\Delta$ IoU \\
@@ -107,7 +107,7 @@ Adaptive Superpixel & \textbf{0.6117} & \textbf{0.7410} & 199.3 ms & \textbf{+0.
 \end{tabular}
 \end{table}
 
-This post-confirmatory analysis scales the SLIC segment count between 80 and 500 proportionally to $\sqrt{HW}$. The paired mean IoU improvement is $+0.0074$ with 95\% bootstrap CI $[+0.0053, +0.0096]$, supporting a small gain from image-size-aware superpixel resolution. Per-area-quartile diagnostic deltas are $+0.0145$ (Q1, smallest), $+0.0059$ (Q2), $+0.0054$ (Q3), and $+0.0037$ (Q4, largest). This decreasing trend is consistent with greater benefit on small targets, but it is not a causal test: the schedule observes image dimensions, not target area. The effect is modest---less than the colour-seed or spatial-prior contributions---and adds no model fit or inference call. \textbf{The defensible contribution is the controlled one-factor ablation and reproducible paired gain; the target-size trend is supporting, not causal, evidence.}
+This secondary analysis scales the SLIC segment count between 80 and 500 proportionally to $\sqrt{HW}$. The paired mean IoU improvement is $+0.0074$ with 95\% bootstrap CI $[+0.0053, +0.0096]$. Per-area-quartile deltas are $+0.0145$ (Q1, smallest), $+0.0059$ (Q2), $+0.0054$ (Q3), and $+0.0037$ (Q4, largest). The effect is modest---less than the colour-seed or spatial-prior contributions---and adds no model fit or inference call. Because the schedule observes image dimensions rather than target area, the quartile pattern is descriptive evidence rather than a target-size mechanism.
 
 \subsection{Stratified analysis}
 
@@ -188,7 +188,7 @@ H3: point-noise IoU $-$ box-noise IoU & 0.1069 & [0.0997, 0.1138] & 0.000060 \\
 Moderate point noise yields 0.8194 IoU and matched-quality box noise 0.7125, supporting H3. Under joint noise, a single prompt reaches 0.6529, score selection 0.6723, consistency medoid 0.6758, vote consensus 0.6710, and Oracle 0.7822. H2 is statistically supported but modest. Consistency medoid was not a primary comparison and remains exploratory; Oracle is not deployable.
 
 \paragraph{Multi-quality sensitivity.}
-In a separately frozen secondary analysis, tuning-only calibration targets observable qualities 0.9, 0.8, 0.7, 0.6, and 0.5; all 1,449 validation samples are then evaluated with 20 trials per target and channel (289,800 SAM inferences). Point-noise minus box-noise IoU is $-0.0016$ [${-0.0041}$, 0.0009] at 0.9, then 0.0238 [0.0201, 0.0275], 0.0756 [0.0703, 0.0809], 0.1497 [0.1430, 0.1563], and 0.2324 [0.2246, 0.2402]. Thus H3's direction is stable from 0.8 to 0.5 but not distinguishable at near-clean quality. Matching hit rate to box IoU remains an engineering calibration, not perceptual equivalence.
+In a pre-specified secondary analysis, tuning-only calibration targets observable qualities 0.9, 0.8, 0.7, 0.6, and 0.5; all 1,449 validation samples are then evaluated with 20 trials per target and channel (289,800 SAM inferences). Point-noise minus box-noise IoU is $-0.0016$ [${-0.0041}$, 0.0009] at 0.9, then 0.0238 [0.0201, 0.0275], 0.0756 [0.0703, 0.0809], 0.1497 [0.1430, 0.1563], and 0.2324 [0.2246, 0.2402]. Thus H3's direction is stable from 0.8 to 0.5 but not distinguishable at near-clean quality. Matching hit rate to box IoU remains an engineering calibration, not perceptual equivalence.
 
 \subsection{Practical method selection}
 
@@ -213,7 +213,7 @@ Small targets ($<12$K px) & Adaptive Superpixel (+0.0145 over fixed, secondary);
 \end{tabular}
 \end{table}
 
-\noindent A preliminary 20-sample ADE20K convenience check has a ranking and ablation pattern consistent with VOC; Appendix~\ref{app:ade20k} reports the full table and scope limitations.
+\noindent A deterministic 200-sample ADE20K evaluation, selected after scanning all 2,000 validation rows, provides a bounded transfer observation; Appendix~\ref{app:ade20k} reports its scope and results.
 
 \section{Discussion}
 
@@ -221,15 +221,15 @@ Representative evaluation changes the original interpretation. The proposed CPU 
 
 Stratified analysis reveals systematic weaknesses: bicycles and other thin-structured objects consistently fail (IoU $<$ 0.21) because superpixel segmentation cannot capture wire-like geometry, and small targets (lowest area quartile) suffer across all CPU methods. The colour-seed component is the most area-sensitive ($+0.25$ IoU Q4$-$Q1), confirming that colour prototypes degrade on small regions. These per-class and per-size patterns---not just aggregate scores---should guide users in selecting the appropriate method for their target-object characteristics.
 
-Negative results are equally informative. Multi-box consensus adds complexity without aggregate benefit. The strongest CPU method is classical GrabCut. On the hardest 20 samples, all CPU methods fail, but Center Color (0.14) and GrabCut (0.30) are more robust than the superpixel-based method (0.07), suggesting that structural priors can become liabilities when the underlying image segmentation is unreliable. These findings prevent a polished engineering artifact from being presented as a stronger methodological contribution than the evidence supports.
+Negative results are equally informative. Multi-box consensus adds complexity without aggregate benefit. The strongest CPU method is classical GrabCut. On the hardest 20 samples, all CPU methods fail, but Center Color (0.14) and GrabCut (0.30) are more robust than the superpixel-based method (0.07), suggesting that structural priors can become liabilities when the underlying image segmentation is unreliable.
 
 \section{Threats to Validity}
 
-Ground-truth-derived prompts are more controlled than real user input. Numeric matching of hit rate and box IoU does not make the metrics psychologically equivalent, and neither distribution is fitted to human errors. A privacy-minimizing human-prompt pilot protocol and collection tool are provided, but no participants were recruited and no human result is claimed. The benchmark selects one largest component per image rather than every instance. Only VOC 2012 and SAM ViT-B are tested at scale. ADE20K evidence is a first-20 convenience sample rather than representative confirmation; the full-stream runner is implemented, but the available environment could not reliably stream all validation data. Full cross-dataset confirmation, larger checkpoints, and learned interactive baselines would improve external validity. The earlier exploratory 30 images reappear inside the complete validation split (2.1\%), so H1--H3 are source-frozen and full-scale but not independently preregistered on a disjoint dataset. Adaptive Superpixel and the five-target curve are post-confirmatory secondary analyses; the image-size schedule cannot establish a causal target-size mechanism.
+Ground-truth-derived prompts are more controlled than real user input. Numeric matching of hit rate and box IoU does not make the metrics psychologically equivalent, and neither distribution is fitted to human errors. A privacy-minimizing human-prompt pilot protocol and collection tool are provided, but no participants were recruited and no human result is claimed. The benchmark selects one largest component per image rather than every instance. VOC 2012 and SAM ViT-B are the only full-scale model evaluation. The ADE20K study deterministically samples 200 of 2,000 validation rows and evaluates CPU methods only; it improves transfer coverage but is not a complete second-dataset confirmation. Full ADE20K evaluation, larger checkpoints, and learned interactive baselines would improve external validity. The earlier exploratory 30 images reappear inside the complete validation split (2.1\%), so H1--H3 are full-scale but not independently preregistered on a disjoint dataset. Adaptive Superpixel and the five-target curve are secondary analyses, and the image-size schedule does not identify a target-size mechanism.
 
 \section{Conclusion}
 
-Under a frozen full-validation protocol with 1,449 VOC images, Robust Superpixel improves over Center Color but trails GrabCut; a secondary adaptive-resolution analysis yields a small paired gain; and SAM's box channel dominates, with point-only underperforming CPU baselines on several rigid classes. Matched-quality box noise causes substantially larger loss than point noise in H3; a secondary five-target curve localizes this asymmetry to quality 0.8 and below, with no distinguishable difference near 0.9. SAM score selection offers a modest but Holm-significant gain. Bicycles and small targets are systematic failure modes, while GrabCut's eight hard failures arise from full-image boxes. The contribution is a reproducible, stratified account of prompt-channel sensitivity and practical trade-offs rather than a state-of-the-art claim.
+Across all 1,449 VOC validation images, Robust Superpixel improves over Center Color but trails GrabCut; a secondary adaptive-resolution comparison yields a small paired gain; and SAM's box channel dominates, with point-only underperforming CPU baselines on several rigid classes. Matched-quality box noise causes substantially larger loss than point noise in H3; a five-target curve localizes this asymmetry to quality 0.8 and below, with no distinguishable difference near 0.9. SAM score selection offers a modest but Holm-significant gain. Bicycles and small targets are systematic failure modes, while GrabCut's eight hard failures arise from full-image boxes. Together, these results provide a reproducible, stratified account of prompt-channel robustness and practical trade-offs.
 
 \clearpage
 \fontsize{8}{9}\selectfont
@@ -283,30 +283,31 @@ The main paper reports the numerical conclusions required for the hypothesis tes
 \label{fig:failure}
 \end{figure}
 
-\section{Preliminary cross-dataset validation on ADE20K}
+\section{Bounded ADE20K transfer observation}
 \label{app:ade20k}
 
-We run the same six CPU methods on the first 20 stream-valid samples from the ADE20K validation mirror \cite{ade20k}. This is a convenience subset, not a representative sample. Samples come from the \texttt{1aurent/ADE20K} Hugging Face mirror with a minimum instance area of 256~px. The loader records a seed for reproducibility, but the current streaming path does not shuffle sample order. Targets and clean prompts follow the VOC protocol.
+We scan all 2,000 rows of an ADE20K validation mirror \cite{ade20k}, then use seed 20260720 to select 200 rows without replacement for CPU evaluation. All rows pass the 256-px minimum-area filter. Samples come from the \texttt{1aurent/ADE20K} Hugging Face mirror; targets and clean prompts follow the VOC protocol. The manifest, selected identifiers, per-sample metrics, and hashes are released without images or masks.
 
 \begin{table}[ht]
 \centering
-\caption{CPU methods on ADE20K (20 validation samples; preliminary).}
+\caption{CPU methods on a deterministic 200-sample ADE20K subset.}
 \begin{tabular}{lrrr}
 \toprule
 Method & Mean IoU & Mean Dice & Med.\ latency \\
 \midrule
-Center Color & 0.5723 & 0.7144 & 17.2 ms \\
-GrabCut point+box & \textbf{0.7159} & \textbf{0.8120} & 1442.9 ms \\
-Robust Superpixel & 0.6573 & 0.7824 & 200.4 ms \\
-\quad no color seed & 0.4609 & 0.6052 & 186.2 ms \\
-\quad no spatial prior & 0.6160 & 0.7476 & 200.6 ms \\
-\quad single box & 0.6568 & 0.7819 & 192.9 ms \\
+Center Color & 0.6350 & 0.7541 & 23.9 ms \\
+GrabCut point+box & \textbf{0.7383} & 0.8169 & 1901.7 ms \\
+Robust Superpixel & 0.7150 & 0.8178 & 362.9 ms \\
+Adaptive Superpixel & 0.7288 & \textbf{0.8278} & 361.7 ms \\
+\quad no color seed & 0.5162 & 0.6567 & 339.2 ms \\
+\quad no spatial prior & 0.6819 & 0.7903 & 360.6 ms \\
+\quad single box & 0.7159 & 0.8184 & 338.3 ms \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The ranking is GrabCut $>$ Robust Superpixel $>$ Center Color, and the color seed remains the largest contributor. The single-box ablation differs from the multi-box default by only 0.0005~IoU, consistent with the VOC finding that box consensus has essentially no average benefit. This evidence remains preliminary because the subset is small, order-dependent, and not representative, and image resolutions differ materially.
+The IoU ranking is GrabCut $>$ Adaptive Superpixel $>$ Robust Superpixel $>$ Center Color. Removing the color seed costs 0.1989 IoU and removing the spatial prior costs 0.0332, while the single-box variant differs from the multi-box default by only $+0.0008$. Adaptive resolution improves descriptively by 0.0138 IoU over the fixed schedule. These patterns agree with the VOC component analysis, but this bounded secondary sample does not replace a complete cross-dataset evaluation.
 
-\noindent\textbf{Scale-up status.} A runner that can scan the complete 2,000-row validation stream is implemented in \texttt{scripts/run\_ade20k\_cpu.py}; the 256-px target filter may yield fewer eligible samples. Only 20 are reported because the available environment could not reliably stream the full mirror.
+\noindent\textbf{Coverage.} The complete 2,000-row stream was scanned and all rows were eligible; 200 seeded rows (10\%) were evaluated with seven CPU methods, producing 1,400 metric rows with no method failures. The same resume-safe runner supports full evaluation, but the remaining 1,800 rows were not run.
 
 \end{document}

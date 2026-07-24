@@ -76,6 +76,10 @@ Oracle 多候选结果只作为候选集合的描述性上界，不参与可部�
 
 0.9 档区间跨零；0.8–0.5 档方向一致且差距随质量下降增大。点命中率与框 IoU 只是可观测校准量，不代表人类感知信息量等价。机器可读协议、289,800 行指标和统计摘要见 [`artifacts/secondary/prompt_quality_sensitivity/`](artifacts/secondary/prompt_quality_sensitivity/README.md)。
 
+### ADE20K 有界迁移观察
+
+完整扫描 ADE20K validation 的 2,000 行后，以固定种子 20260720 无放回抽取 200 行（10%）运行七种 CPU 方法，共得到 1,400 行指标且无方法失败。GrabCut、Adaptive Superpixel、固定 Robust Superpixel 和 Center Color 的 Mean IoU 分别为 0.7383、0.7288、0.7150 和 0.6350；Adaptive 相对固定分辨率描述性提高 0.0138 IoU。该结果扩大了跨数据集覆盖，但仍是二级有界样本，不等同于完整 2,000 样本确认。清单、选择 ID、逐样本指标和哈希见 [`artifacts/secondary/ade20k/`](artifacts/secondary/ade20k/README.md)。
+
 ### 真人提示试点状态
 
 仓库提供不采集 PII 的本地标注界面、验证器、参与者聚类分析脚本和 [`protocol/human_pilot_protocol.json`](protocol/human_pilot_protocol.json)。在导师/伦理审查状态记为批准且协议冻结之前，真实采集会硬性拒绝启动。当前没有招募参与者，因而**没有真人提示结果，也不以合成演示数据代替真人证据**。
@@ -207,7 +211,7 @@ PromptLite-Seg/
 ## 局限性
 
 - 点和框仍由真值掩码自动构造；校准使两种噪声在可观测质量上接近，但不等同于真实人类交互分布。
-- 只有 VOC 2012 和 SAM ViT-B 获得全规模验证；ADE20K 仍是小规模便利样本，SAM 2、ViT-L/H 和真人提示尚未验证。
+- 只有 VOC 2012 和 SAM ViT-B 获得全规模验证；ADE20K 完整扫描 2,000 行后仅评测固定抽取的 200 行，仍不构成全量跨数据集确认，SAM 2、ViT-L/H 和真人提示尚未验证。
 - GrabCut 的较高总体性能说明自研轻量方法不是当前最强方法；其价值主要在透明组件分析和较低延迟。
 - 多框共识在完整验证集上没有平均收益，是应保留的负结果。
 - SAM 分数选择的平均提升虽经确认，但幅度为 +0.0193 IoU，实际价值仍需结合额外推理成本评估。

@@ -30,6 +30,8 @@ author identity.
   paired full-validation statistics and provenance hashes.
 - A separately frozen five-target sensitivity analysis with 289,800 real SAM
   metric rows; it is secondary and does not relabel H3.
+- A deterministic 200-sample ADE20K transfer observation drawn after scanning
+  all 2,000 validation rows, with 1,400 data-free metric rows and provenance.
 - A privacy-minimizing human-prompt pilot toolkit with collection locked until
   instructor/ethics approval and protocol freezing; no human result is claimed.
 
