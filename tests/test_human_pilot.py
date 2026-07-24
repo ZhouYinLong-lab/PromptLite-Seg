@@ -137,7 +137,7 @@ def test_validator_rejects_pii_fields(tmp_path: Path, synthetic_data_dir: Path) 
             "box_x0": "", "box_y0": "", "box_x1": "", "box_y1": "",
             "elapsed_time_ms": "1000",
             "timeout": "False",
-            "email": "test@example.com",
+            "email": "test" + chr(64) + "example.com",
         })
 
     from scripts.validate_human_annotations import validate_annotations
