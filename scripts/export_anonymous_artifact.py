@@ -70,6 +70,7 @@ def source_files() -> list[tuple[Path, str]]:
     ]
     selected.extend(name for name in REQUIRED_SECONDARY if name not in selected)
     fixed = (
+        ".gitignore",
         "LICENSE",
         "THIRD_PARTY_NOTICES.md",
         "requirements.txt",
