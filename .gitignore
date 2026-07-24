@@ -25,3 +25,5 @@ UPGRADE_ROADMAP.md
 outputs_ade20k/
 outputs_adaptive/
 outputs_analysis/
+data/human_annotations/
+artifacts/secondary/**/sample_checkpoints/

@@ -1,0 +1,147 @@
+{
+  "protocol_version": "1.0",
+  "status": "secondary_sensitivity_frozen",
+  "description": "Secondary multi-quality point-versus-box sensitivity curve. This is a robustness/sensitivity analysis, not a primary hypothesis test. Numeric observable matching (point hit rate vs box IoU) is a calibration convenience and does NOT imply human-perceptual equivalence.",
+  "frozen_at": "2026-07-24T09:28:19.023837+00:00",
+  "research_question": "Does the direction of H3 (box noise causes larger mean IoU loss than point noise at matched prompt quality) persist across multiple independently calibrated quality targets?",
+  "status_exploratory": true,
+  "calibration": {
+    "dataset": "VOC 2012 train tuning split",
+    "manifest": "protocol/manifests/tuning_train.jsonl",
+    "samples": 100,
+    "quality_targets": [
+      0.9,
+      0.8,
+      0.7,
+      0.6,
+      0.5
+    ],
+    "trials_per_target": 20,
+    "point_metric": "aggregate target-mask hit rate",
+    "box_metric": "mean IoU with clean tight box",
+    "grid": {
+      "point_scale_range": [
+        0.0,
+        0.5
+      ],
+      "box_scale_range": [
+        0.0,
+        0.5
+      ],
+      "step": 0.0025
+    },
+    "seed_namespace": "promptlite-seg-sensitivity-calibration-v1",
+    "method": "independent deterministic grid search per quality target per perturbation type minimizing absolute error"
+  },
+  "validation": {
+    "dataset": "VOC 2012 validation",
+    "manifest": "protocol/manifests/confirmatory_validation.jsonl",
+    "samples": 1449,
+    "conditions": [
+      "point_noise",
+      "box_noise"
+    ],
+    "trials_per_condition": 20,
+    "other_channel_clean": true,
+    "sam_model": "vit_b",
+    "checkpoint_sha256": "ec2df62732614e57411cdcf32a23ffdf28910380d03139ee0f4fcbe91eb8c912",
+    "aggregation": "sample-level mean across trials before paired inference"
+  },
+  "statistics": {
+    "per_target_metrics": [
+      "point_quality",
+      "box_quality",
+      "point_iou",
+      "box_iou",
+      "paired_delta"
+    ],
+    "confidence_interval": "paired bootstrap 95% interval over sample-level deltas",
+    "sample_count": true,
+    "failure_count": true,
+    "primary_pvalues": false,
+    "relabel_h3": false
+  },
+  "calibrated_scales": {
+    "0.9": {
+      "point": {
+        "scale": 0.14250000000000002,
+        "target_quality": 0.9,
+        "observed_quality": 0.8995,
+        "absolute_error": 0.0005
+      },
+      "box": {
+        "scale": 0.0275,
+        "target_quality": 0.9,
+        "observed_quality": 0.896621,
+        "absolute_error": 0.003379
+      }
+    },
+    "0.8": {
+      "point": {
+        "scale": 0.1975,
+        "target_quality": 0.8,
+        "observed_quality": 0.801,
+        "absolute_error": 0.001
+      },
+      "box": {
+        "scale": 0.0575,
+        "target_quality": 0.8,
+        "observed_quality": 0.802331,
+        "absolute_error": 0.002331
+      }
+    },
+    "0.7": {
+      "point": {
+        "scale": 0.2475,
+        "target_quality": 0.7,
+        "observed_quality": 0.7015,
+        "absolute_error": 0.0015
+      },
+      "box": {
+        "scale": 0.095,
+        "target_quality": 0.7,
+        "observed_quality": 0.701877,
+        "absolute_error": 0.001877
+      }
+    },
+    "0.6": {
+      "point": {
+        "scale": 0.31,
+        "target_quality": 0.6,
+        "observed_quality": 0.5985,
+        "absolute_error": 0.0015
+      },
+      "box": {
+        "scale": 0.14,
+        "target_quality": 0.6,
+        "observed_quality": 0.600513,
+        "absolute_error": 0.000513
+      }
+    },
+    "0.5": {
+      "point": {
+        "scale": 0.3775,
+        "target_quality": 0.5,
+        "observed_quality": 0.5,
+        "absolute_error": 0.0
+      },
+      "box": {
+        "scale": 0.1925,
+        "target_quality": 0.5,
+        "observed_quality": 0.499798,
+        "absolute_error": 0.000202
+      }
+    }
+  },
+  "calibration_meta": {
+    "num_tuning_samples": 100,
+    "trials_per_target": 20,
+    "grid_step": 0.0025,
+    "seed_namespace": "promptlite-seg-sensitivity-calibration-v1"
+  },
+  "_sha256": {
+    "algorithm": "sha256",
+    "scope": "canonical JSON excluding _sha256",
+    "value": "c2b47bb9709ac7350812309a28a039c70264bf3db3e41140e496fd72c7a2b3dd"
+  }
+}

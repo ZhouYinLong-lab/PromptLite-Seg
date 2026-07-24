@@ -1,0 +1,93 @@
+{
+  "protocol_version": "1.0",
+  "status": "secondary_pilot_unfrozen",
+  "description": "Privacy-preserving human prompt pilot. Exploratory study comparing human-generated prompts with ground-truth-derived prompts. This protocol must be approved by an instructor or ethics reviewer BEFORE any participant recruitment begins.",
+  "research_question": "How do human-generated point and box prompts compare with ground-truth-derived prompts in terms of accuracy?",
+  "status_exploratory": true,
+  "pilot_only": true,
+  "ethics_checkpoint": {
+    "required_before_recruitment": true,
+    "reviewer_type": "instructor_or_ethics_reviewer",
+    "checklist": [
+      "Protocol reviewed by instructor/ethics reviewer",
+      "Participant information sheet prepared",
+      "Informed consent procedure defined",
+      "Data storage and anonymization verified",
+      "PII collection minimized to zero",
+      "Right to withdraw without penalty confirmed"
+    ],
+    "status": "NOT_YET_REVIEWED"
+  },
+  "design": {
+    "sample": {
+      "source": "VOC 2012 validation",
+      "selection": "balanced deterministic sample across 20 classes",
+      "images_per_class": 2,
+      "total_images": 40,
+      "tasks_per_image": 2,
+      "total_tasks": 80,
+      "sampling_seed": 20260724,
+      "sampling_method": "stratified by class, deterministic within class"
+    },
+    "task_randomization": {
+      "order": "randomized per participant using participant code as seed",
+      "point_vs_box_ratio": "1:1 (one point task and one box task per image)",
+      "within_image_order": "randomized as part of the participant-specific task permutation"
+    },
+    "target_participants": 10,
+    "target_total_tasks": 800,
+    "stopping_rule": "data collection ends when target participant count is reached or after 14 calendar days"
+  },
+  "exclusions": {
+    "criteria": [
+      "Task not completed within 120 seconds (technical timeout)",
+      "Bounding box with zero area (technically invalid box)",
+      "Point or box coordinates outside image bounds"
+    ],
+    "outcome_based": false,
+    "note": "Exclusion rules are based only on technical validity, NOT on task outcome or accuracy"
+  },
+  "data_collection": {
+    "pii_policy": "NO PII COLLECTED",
+    "collected_fields": [
+      "participant_code (researcher-issued random code)",
+      "task_id",
+      "image_id",
+      "task_type (point or box)",
+      "point_x",
+      "point_y",
+      "box_x0",
+      "box_y0",
+      "box_x1",
+      "box_y1",
+      "elapsed_time_ms"
+    ],
+    "explicitly_excluded": [
+      "name",
+      "email",
+      "student_number",
+      "ip_address",
+      "user_agent",
+      "free_text",
+      "demographic_data",
+      "any_other_pii"
+    ]
+  },
+  "analysis": {
+    "metrics": [
+      "point_hit_rate",
+      "box_iou",
+      "per_participant_distributions",
+      "participant_clustered_uncertainty",
+      "comparison_with_synthetic_perturbation_quality"
+    ],
+    "clustering": "participant_code",
+    "confirmatory_claims": false,
+    "output_label": "exploratory_pilot_only"
+  },
+  "provenance": {
+    "frozen_before_collection": false,
+    "must_freeze_before_collection": true,
+    "protocol_sha256": null
+  }
+}
