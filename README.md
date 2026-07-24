@@ -18,15 +18,15 @@ PromptLite-Seg 是南京大学 2026 春《人工智能导论》方向 7“零样
 1. **代表性、不可事后调参的评测协议。** VOC train 中固定抽取每类 5 个目标作为 100 样本调参集，VOC validation 的全部 1,449 行作为确认集；清单、数据源、算法文件与随机协议均由 SHA-256 固定。
 2. **按可观测提示质量校准点噪声与框噪声。** 点扰动以目标命中率衡量，框扰动以相对紧框 IoU 衡量；两者先在调参集上独立校准到相同的 0.85/0.65 质量目标，再在确认集上检验，从而避免比较任意且不等强的扰动尺度。
 3. **预设假设与多重检验控制。** 在查看完整确认结果前固定 H1–H3、主要指标和方向，先按样本聚合重复试验，再使用配对 Bootstrap（20,000 次）、sign-flip permutation test（50,000 次）和 Holm 家族错误率校正。
-4. **自适应超像素分辨率方法。** 提出图像尺寸感知的 SLIC 段数自适应策略（80–500 段，与 √(HW) 成正比），在固定 280 段基础上提升 +0.0074 IoU（95% CI [0.0053, 0.0096]），收益集中于小目标（Q1: +0.0135）。零额外超参数、零额外推理成本。
-5. **全面分层分析。** 提供 per-class、per-area-quartile、per-aspect-ratio 的详细性能分解，识别 bicycle（所有 CPU 方法 <0.21 IoU）和 small targets 为系统性失败模式。SAM point-only 在 tvmonitor/sofa/bus 等刚性类别上反直觉地弱于 13ms 的 Center Color。
-6. **失败案例定性分析与实用方法选择指南。** 可视化最佳/最差预测，发现 GrabCut 的 8 例失败均发生在大面积多纹理目标（沙发占 3/8）而非小目标。提供基于目标特征和资源约束的方法选择决策表。
+4. **自适应超像素分辨率方法。** 提出图像尺寸感知的 SLIC 段数自适应策略（80–500 段，与 √(HW) 成正比），在固定 280 段基础上提升 +0.0074 IoU（95% CI [0.0053, 0.0096]），小目标四分位的二次诊断增益为 +0.0145。该变体不增加模型拟合或推理调用；它是 H1–H3 之后的二次分析，不冒充预设主检验。
+5. **多质量档稳健性曲线。** 在独立冻结的二级协议下，将点命中率和框 IoU 校准到 0.9–0.5 五档，并在全部 1,449 个验证样本上每档、每通道运行 20 次，共 289,800 条真实 SAM 结果。结果把 H3 的适用边界定位为：0.8–0.5 档框噪声更有害，0.9 档差异不可区分。
+6. **全面分层分析与实用决策。** 提供 per-class、per-area-quartile、per-aspect-ratio 分解，识别 bicycle、small targets 和全图框 GrabCut 失败，并据此给出方法选择表。
 
 这些贡献主要体现在实验设计、可复核证据链、分层诊断和负结果披露；项目不宣称 SLIC、GrabCut、SAM 或各组成技术本身首次提出。
 
 ## 确认性结果
 
-冻结协议、逐样本指标和统计摘要位于 [`artifacts/confirmatory/`](artifacts/confirmatory/README.md)。所有制品均为 CSV/JSON/Markdown，不包含 VOC 图像、掩码或模型权重。
+H1–H3 的冻结协议、逐样本指标和统计摘要位于 [`artifacts/confirmatory/`](artifacts/confirmatory/README.md)；Adaptive Superpixel 的后确认性摘要及来源哈希单独位于 [`artifacts/secondary/`](artifacts/secondary/README.md)。所有制品均为 CSV/JSON/Markdown，不包含 VOC 图像、掩码或模型权重。
 
 ### CPU 方法与消融
 
@@ -35,12 +35,12 @@ PromptLite-Seg 是南京大学 2026 春《人工智能导论》方向 7“零样
 | Center Color | 0.5404 | 0.6753 | 13.1 ms | 0 |
 | GrabCut（点 + 框） | **0.6859** | **0.7751** | 416.8 ms | 8/1449 |
 | Robust Superpixel | 0.6044 | 0.7345 | 199.8 ms | 0 |
-| Adaptive Superpixel | 0.6117 | 0.7410 | 199.3 ms | 0 |
+| Adaptive Superpixel（后确认性） | 0.6117 | 0.7410 | 199.3 ms | 0 |
 | └ 无颜色种子 | 0.4633 | 0.5977 | 187.0 ms | 0 |
 | └ 无空间先验 | 0.5827 | 0.7152 | 197.6 ms | 0 |
 | └ 单框、无多框共识 | 0.6043 | 0.7344 | 188.5 ms | 0 |
 
-GrabCut 的 8 次初始化失败按 IoU/Dice=0 计入总体均值，没有从结果中删除。消融表明颜色种子贡献最大，空间先验有稳定正贡献；多框共识的平均增益接近零，因此不再把它表述为已证实的主要优势。
+GrabCut 的 8 次初始化失败按 IoU/Dice=0 计入总体均值，没有从结果中删除；根因是紧框覆盖全图后缺少确定背景样本，而不是从目标纹理推测出的 GMM 不稳定。消融表明颜色种子贡献最大，空间先验有稳定正贡献；多框共识的平均增益接近零，因此不再把它表述为已证实的主要优势。
 
 ### SAM 提示模态
 
@@ -62,6 +62,24 @@ GrabCut 的 8 次初始化失败按 IoU/Dice=0 计入总体均值，没有从结
 
 Oracle 多候选结果只作为候选集合的描述性上界，不参与可部署方法主张或 H1–H3 检验。
 
+### 二级多质量档敏感性分析
+
+该分析在 H1–H3 之后独立冻结，不追溯性改写主假设。100 个 tuning 样本用于五档校准，全部 1,449 个 validation 样本各运行 20 次点扰动和 20 次框扰动。
+
+| 质量目标 | 实测点命中率 | 实测框 IoU | 点噪声 SAM IoU | 框噪声 SAM IoU | 配对差值（点−框）95% CI |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 0.9 | 0.8909 | 0.8957 | 0.8395 | 0.8411 | −0.0016 [−0.0041, 0.0009] |
+| 0.8 | 0.7859 | 0.8005 | 0.8306 | 0.8068 | 0.0238 [0.0201, 0.0275] |
+| 0.7 | 0.6826 | 0.6989 | 0.8217 | 0.7462 | 0.0756 [0.0703, 0.0809] |
+| 0.6 | 0.5748 | 0.5981 | 0.8133 | 0.6636 | 0.1497 [0.1430, 0.1563] |
+| 0.5 | 0.4697 | 0.4982 | 0.8024 | 0.5700 | 0.2324 [0.2246, 0.2402] |
+
+0.9 档区间跨零；0.8–0.5 档方向一致且差距随质量下降增大。点命中率与框 IoU 只是可观测校准量，不代表人类感知信息量等价。机器可读协议、289,800 行指标和统计摘要见 [`artifacts/secondary/prompt_quality_sensitivity/`](artifacts/secondary/prompt_quality_sensitivity/README.md)。
+
+### 真人提示试点状态
+
+仓库提供不采集 PII 的本地标注界面、验证器、参与者聚类分析脚本和 [`protocol/human_pilot_protocol.json`](protocol/human_pilot_protocol.json)。在导师/伦理审查状态记为批准且协议冻结之前，真实采集会硬性拒绝启动。当前没有招募参与者，因而**没有真人提示结果，也不以合成演示数据代替真人证据**。
+
 ## 方法
 
 ### Center Color
@@ -74,11 +92,11 @@ Oracle 多候选结果只作为候选集合的描述性上界，不参与可部�
 
 ### Adaptive Superpixel
 
-SLIC 段数不再固定为 280，而是根据图像尺寸自适应：n = max(80, min(500, ⌊√(HW) · 2.0⌋))。大图获得更细的超像素粒度，小图使用更紧凑的段数。在 small-target 四分位上提升 +0.0135 IoU，零额外超参数成本。
+SLIC 段数不再固定为 280，而是根据图像尺寸自适应：n = max(80, min(500, ⌊√(HW) · 2.0⌋))。大图获得更细的超像素粒度，小图使用更紧凑的段数。相对固定 280 段，配对平均增益为 +0.0074 IoU；small-target 四分位的二次诊断增益为 +0.0145。由于公式读取的是图像尺寸而非目标尺寸，四分位趋势只作为支持性证据，不解释为目标尺寸的因果效应。
 
 ### GrabCut
 
-使用边界框初始化 probable foreground、框外初始化 background，并以点邻域提供 sure foreground。该经典强基线显著超过自研轻量方法，但耗时更长，并在 8 个极端初始化案例上失败。
+使用边界框初始化 probable foreground、框外初始化 background，并以点邻域提供 sure foreground。该经典强基线显著超过自研轻量方法，但耗时更长；当紧框覆盖全图、框外没有确定背景像素时会初始化失败（共 8 例）。
 
 ### SAM ViT-B
 
@@ -134,7 +152,9 @@ python scripts/prepare_voc_from_manifest.py \
 
 ```bash
 python scripts/calibrate_prompt_noise.py
-python scripts/run_confirmatory_cpu.py --workers 8
+python scripts/run_confirmatory_cpu.py --workers 8 --methods \
+  center_color grabcut_point_box robust_superpixel \
+  robust_no_color_seed robust_no_spatial_prior robust_single_box
 ```
 
 ### 4. SAM CUDA 实验
@@ -158,7 +178,8 @@ python scripts/analyze_confirmatory.py
 
 ```text
 PromptLite-Seg/
-├── artifacts/confirmatory/       # 无图像的逐样本指标、统计与校验和
+├── artifacts/confirmatory/       # H1–H3 无图像逐样本指标、统计与校验和
+├── artifacts/secondary/          # 后确认性 Adaptive 摘要与来源哈希
 ├── protocol/                     # 冻结协议、调参/确认清单、噪声校准
 ├── reports/                      # 技术报告与匿名投稿稿件
 ├── scripts/                      # 资产验证、实验、统计、可视化和制品入口
@@ -186,14 +207,14 @@ PromptLite-Seg/
 ## 局限性
 
 - 点和框仍由真值掩码自动构造；校准使两种噪声在可观测质量上接近，但不等同于真实人类交互分布。
-- 研究只覆盖 VOC 2012 和 SAM ViT-B；跨数据集、SAM 2、ViT-L/H 或真实用户提示尚未验证。
+- 只有 VOC 2012 和 SAM ViT-B 获得全规模验证；ADE20K 仍是小规模便利样本，SAM 2、ViT-L/H 和真人提示尚未验证。
 - GrabCut 的较高总体性能说明自研轻量方法不是当前最强方法；其价值主要在透明组件分析和较低延迟。
 - 多框共识在完整验证集上没有平均收益，是应保留的负结果。
 - SAM 分数选择的平均提升虽经确认，但幅度为 +0.0193 IoU，实际价值仍需结合额外推理成本评估。
 
 ## 报告、匿名投稿与引用
 
-课程报告位于 [`reports/report.pdf`](reports/report.pdf)，双盲稿为 [`reports/report_anonymous.pdf`](reports/report_anonymous.pdf)。面向双盲 OpenReview 会场时，不得直接提交当前具名仓库链接；请生成经过身份、资产与路径审计的补充包：
+**课程提交只能使用 [`reports/report_anonymous.pdf`](reports/report_anonymous.pdf)。** 该文件使用 NeurIPS 模板，正文（含摘要）严格限定为第 1--7 页，第 8 页开始为参考文献，第 9 页起为附录，并通过身份与 PDF 元数据审计。[`reports/report.pdf`](reports/report.pdf) 是内部留存的具名版本，**不得上传到双盲评审系统**。面向双盲 OpenReview 会场时，也不得直接提交当前具名仓库链接；请生成经过身份、资产与路径审计的补充包：
 
 ```bash
 python scripts/export_anonymous_artifact.py

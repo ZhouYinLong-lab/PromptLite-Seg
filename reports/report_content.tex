@@ -1,8 +1,8 @@
 \begin{document}
-\hypersetup{colorlinks=true,linkcolor=blue!60!black,urlcolor=blue!50!black,citecolor=blue!60!black}
+\maketitle
 
 \begin{abstract}
-Promptable segmentation systems are often evaluated with clean points and boxes, although real prompts are uncertain and the two channels do not admit directly comparable perturbation scales. We present a pre-specified evaluation on all 1,449 PASCAL VOC 2012 validation images. A disjoint, class-balanced 100-image subset of VOC train is used only to calibrate point displacement and box perturbation to matched observable quality targets. We compare Center Color, GrabCut, a robust-superpixel method with three component ablations, a novel adaptive-superpixel variant, and SAM ViT-B under three prompt modalities. Three primary hypotheses are tested with paired bootstrap (20,000 replicates), sign-flip permutation tests (50,000 permutations), and Holm correction. Robust Superpixel improves over Center Color by 0.0640 IoU (95\% CI [0.0585, 0.0696]); SAM score selection improves over a single noisy prompt by 0.0193 [0.0135, 0.0251]; and matched-quality point-noise IoU exceeds box-noise IoU by 0.1069 [0.0997, 0.1138]. The adaptive-superpixel variant yields a further +0.0074 [0.0053, 0.0096], concentrated on small targets (+0.0135). Per-class stratified analysis reveals systematic failure modes: bicycle IoU remains below 0.21 for all CPU methods and below 0.36 even for SAM box-only; GrabCut's eight failures all occur on large ($>$67K px) multi-textured objects where GMM initialization collapses. Preliminary ADE20K results replicate method ranking and ablation patterns. Negative findings---multi-box consensus contributes zero average gain, SAM point-only underperforms CPU methods on several rigid-object classes---are reported as design evidence. The result is a reproducible, stratified account of prompt-channel failure and component-level evidence strength rather than a state-of-the-art claim.
+Promptable segmentation systems are often evaluated with clean points and boxes, although real prompts are uncertain and the two channels do not admit directly comparable perturbation scales. We present a pre-specified evaluation on all 1,449 PASCAL VOC 2012 validation images. A disjoint, class-balanced 100-image subset of VOC train is used only to calibrate point displacement and box perturbation to matched observable quality targets. We compare Center Color, GrabCut, a robust-superpixel method with three component ablations, a secondary adaptive-superpixel variant, and SAM ViT-B under three prompt modalities. Three primary hypotheses are tested with paired bootstrap (20,000 replicates), sign-flip permutation tests (50,000 permutations), and Holm correction. Robust Superpixel improves over Center Color by 0.0640 IoU (95\% CI [0.0585, 0.0696]); SAM score selection improves over a single noisy prompt by 0.0193 [0.0135, 0.0251]; and matched-quality point-noise IoU exceeds box-noise IoU by 0.1069 [0.0997, 0.1138]. In separately labelled post-confirmatory analyses, the adaptive variant yields +0.0074 [0.0053, 0.0096], while a five-target, 289,800-inference sensitivity curve finds negligible channel difference at quality 0.9 but increasing box-noise disadvantage from 0.0238 to 0.2324 IoU at targets 0.8--0.5. Per-class analysis reveals systematic failure modes: bicycle IoU remains below 0.21 for all CPU methods and below 0.36 even for SAM box-only; all eight GrabCut hard failures occur when the tight box spans the full image and leaves no definite-background pixels. Multi-box consensus gives zero mean gain, while SAM point-only trails CPU methods on several rigid classes. The result is a reproducible, stratified account of prompt-channel failure and component-level evidence strength rather than a state-of-the-art claim.
 \end{abstract}
 
 \section{Introduction}
@@ -35,7 +35,7 @@ Center Color estimates an RGB prototype around the point, thresholds color dista
 GrabCut uses only the prompt: outside-box pixels initialize background, inside-box pixels probable foreground, and a point disk sure foreground. Five iterations are used. Eight OpenCV initialization failures are retained and scored as zero.
 
 \paragraph{Adaptive Superpixel.}
-The original Robust Superpixel uses a fixed SLIC segment count of 280 across all images. Adaptive Superpixel replaces this with an image-size-aware count: $n_{\text{seg}} = \max(80, \min(500, \lfloor\sqrt{HW} \cdot 2.0\rfloor))$. Larger images thus receive finer superpixel resolution, while smaller images use fewer, more coherent segments. The hypothesis is that adaptive resolution should benefit images with targets at extreme size scales, particularly small targets where 280 fixed segments may over-fragment the object. All other components (color seed, spatial prior, box consensus) are identical to Robust Superpixel, making this a clean ablation of the segment-count heuristic.
+The original Robust Superpixel uses a fixed SLIC segment count of 280 across all images. Adaptive Superpixel replaces this with an image-size-aware count: $n_{\text{seg}} = \max(80, \min(500, \lfloor\sqrt{HW} \cdot 2.0\rfloor))$. Larger images thus receive finer superpixel resolution, while smaller images use fewer, more coherent segments. This preserves a more consistent image-scale granularity across varying resolutions. All other components (color seed, spatial prior, box consensus) are identical to Robust Superpixel, making this a clean one-factor ablation. Target-area stratification is reported only as a secondary diagnostic because target area is not an input to the schedule.
 
 \subsection{SAM and candidate selection}
 SAM ViT-B is evaluated with point-only, box-only, and point-plus-box prompts. Under noisy point-plus-box input, five extra prompts are sampled locally around the observed prompt without access to the clean prompt. We compare the single noisy prediction, maximum SAM score, mask-IoU consistency medoid, majority vote, and Oracle best-of-six. Oracle uses target IoU and is a descriptive upper bound only.
@@ -43,7 +43,7 @@ SAM ViT-B is evaluated with point-only, box-only, and point-plus-box prompts. Un
 \section{Frozen Protocol}
 
 \subsection{Data separation}
-The tuning split contains 100 VOC train images: five largest-component targets per class, sampled with seed 20260719. The confirmatory split contains all 1,449 VOC validation rows. The prior 30-image study is exploratory and excluded from confirmation. Data manifests contain identifiers and geometry but no image or mask payloads; manifests, sources, algorithm files, SAM source, and the ViT-B checkpoint are SHA-256 pinned.
+The tuning split contains 100 VOC train images: five largest-component targets per class, sampled with seed 20260719. The confirmatory split contains all 1,449 VOC validation rows. The earlier 30-image analysis remains exploratory; because confirmation uses the complete validation split, those images are necessarily included, so hypothesis motivation and confirmation are not fully dataset-disjoint. Data manifests contain identifiers and geometry but no image or mask payloads; manifests, sources, algorithm files, SAM source, and the ViT-B checkpoint are SHA-256 pinned.
 
 \subsection{Prompt calibration}
 On tuning data only, independent deterministic grid searches match point hit rate and box IoU to the same quality targets using 20 trials per target.
@@ -96,7 +96,7 @@ H1 is supported: Robust Superpixel improves over Center Color by 0.0640 IoU, 95\
 
 \begin{table}[ht]
 \centering
-\caption{Adaptive vs.\ fixed SLIC segment count on VOC validation.}
+\caption{Post-confirmatory adaptive vs.\ fixed SLIC segment count on VOC validation.}
 \begin{tabular}{lrrrc}
 \toprule
 Method & Mean IoU & Mean Dice & Med.\ latency & $\Delta$ IoU \\
@@ -107,11 +107,11 @@ Adaptive Superpixel & \textbf{0.6117} & \textbf{0.7410} & 199.3 ms & \textbf{+0.
 \end{tabular}
 \end{table}
 
-Adaptive Superpixel scales the SLIC segment count between 80 and 500 proportionally to $\sqrt{HW}$. The paired mean IoU improvement is $+0.0074$ with 95\% bootstrap CI $[+0.0053, +0.0096]$, confirming a small but statistically reliable gain from image-size-aware superpixel resolution. The effect is most pronounced on small targets: per-area-quartile deltas are $+0.0135$ (Q1, smallest), $+0.0069$ (Q2), $+0.0054$ (Q3), and $+0.0037$ (Q4, largest). This monotonic trend confirms the design hypothesis: a fixed 280-segment count over-fragments small objects, and reducing the count for small images recovers some of this loss. The effect is modest---less than the colour-seed or spatial-prior contributions---but requires zero additional hyperparameter tuning, making it a costless upgrade.
+This post-confirmatory analysis scales the SLIC segment count between 80 and 500 proportionally to $\sqrt{HW}$. The paired mean IoU improvement is $+0.0074$ with 95\% bootstrap CI $[+0.0053, +0.0096]$, supporting a small gain from image-size-aware superpixel resolution. Per-area-quartile diagnostic deltas are $+0.0145$ (Q1, smallest), $+0.0059$ (Q2), $+0.0054$ (Q3), and $+0.0037$ (Q4, largest). This decreasing trend is consistent with greater benefit on small targets, but it is not a causal test: the schedule observes image dimensions, not target area. The effect is modest---less than the colour-seed or spatial-prior contributions---and adds no model fit or inference call. \textbf{The defensible contribution is the controlled one-factor ablation and reproducible paired gain; the target-size trend is supporting, not causal, evidence.}
 
 \subsection{Stratified analysis}
 
-Table~\ref{tab:stratified} reports per-class IoU for each CPU method. Performance is bimodal: structurally simple, large, box-shaped classes (tvmonitor 0.724, sofa 0.720, bus 0.702) exceed 0.70~IoU, while thin-structured classes (bicycle 0.203, motorbike 0.548) fall far below the dataset mean. The nine bicycle samples among the worst 20---23.7\% of all bicycles versus 1.3\% for cars---confirm that superpixel-based methods fail systematically on wire-like geometries where even the tight bounding box contains substantial background.
+Table~\ref{tab:stratified} reports representative per-class IoU. Performance is bimodal: structurally simple, large, box-shaped classes (tvmonitor 0.724, sofa 0.720, bus 0.702) exceed 0.70~IoU, while thin-structured classes (bicycle 0.203, motorbike 0.548) fall far below the dataset mean. The nine bicycle samples among the worst 20---23.7\% of all bicycles versus 1.3\% for cars---confirm that superpixel-based methods fail systematically on wire-like geometries where even the tight bounding box contains substantial background. Figure~\ref{fig:perclass} in Appendix~\ref{app:extended} gives the complete all-method comparison.
 
 \begin{table}[ht]
 \centering
@@ -127,37 +127,16 @@ bus & 0.7023 & motorbike & 0.5479 \\
 cat & 0.6704 & chair & 0.5488 \\
 dog & 0.6169 & bird & 0.5916 \\
 \midrule
-\multicolumn{2}{l}{Weighted macro mean (20 classes)} & \multicolumn{2}{r}{0.6044} \\
+\multicolumn{2}{l}{Sample-weighted mean (20 classes)} & \multicolumn{2}{r}{0.6044} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\begin{figure}[ht]
-\centering
-\includegraphics[width=\linewidth]{per_class_iou.png}
-\caption{Per-class mean IoU for all CPU methods on VOC 2012 validation. Bicycle is systematically the most difficult class (all methods $<$ 0.21 IoU). GrabCut dominates except on \texttt{pottedplant}, where it underperforms due to GMM initialization sensitivity on multi-colour small-pot scenes.}
-\label{fig:perclass}
-\end{figure}
-
 \paragraph{Effect of target area.}
-All methods improve on larger targets. The largest area quartile exceeds the smallest by 0.064~IoU (Center Color), 0.210 (GrabCut), and 0.118 (Robust Superpixel). The colour-seed ablation shows the steepest area dependence ($+0.253$ IoU from Q1 to Q4), indicating that colour-based segmentation is most fragile on small regions where reliable prototypes are harder to estimate. GrabCut's stronger area dependence reflects its GMM fitting: small targets provide fewer pixels for model estimation, increasing initialization-failure risk (see Figure~\ref{fig:perarea}).
-
-\begin{figure}[ht]
-\centering
-\includegraphics[width=0.85\linewidth]{per_area_iou.png}
-\caption{Mean IoU by target area quartile. All methods improve with area; the colour-seed ablation (Robust $-$color) shows the steepest climb, reflecting unreliable colour prototypes on small regions.}
-\label{fig:perarea}
-\end{figure}
+All methods improve on larger targets. The largest area quartile exceeds the smallest by 0.064~IoU (Center Color), 0.210 (GrabCut), and 0.118 (Robust Superpixel). The colour-seed ablation shows the steepest area dependence ($+0.253$ IoU from Q1 to Q4), indicating that colour-based segmentation is most fragile on small regions where reliable prototypes are harder to estimate. GrabCut's lower mean performance on small targets is consistent with less stable appearance estimation from fewer foreground pixels (Figure~\ref{fig:perarea} in Appendix~\ref{app:extended}); this aggregate degradation is distinct from its eight hard \texttt{initGMMs} failures, which are caused by full-image boxes leaving no definite-background pixels.
 
 \paragraph{Failure cases.}
-The 20 worst Robust Superpixel predictions (IoU $<$ 0.13) share three traits: (i)~9 of 20 are bicycles, (ii)~median target area is 7,933~px vs.\ 27,023~px dataset-wide, and (iii)~three targets below 500~px produce near-zero IoU. On these difficult samples, Center Color (0.14~IoU) and GrabCut (0.30~IoU) both outperform Robust Superpixel (0.07), suggesting that the superpixel pipeline's additional structure can be counterproductive when the underlying SLIC segmentation is itself unreliable on thin or tiny objects. Conversely, the best 20 predictions are dominated by large, uniformly coloured objects (sofas, cats, monitors) with median area 35,687~px.
-
-\begin{figure}[ht]
-\centering
-\includegraphics[width=\linewidth]{failure_report_grid.png}
-\caption{Error maps for three worst and three best Robust Superpixel predictions. Green = true positive, red = false positive, blue = false negative. Worst cases (top row) are dominated by thin structures (bicycle, chair, bottle) and small targets where the superpixel segmentation fragments object boundaries. Best cases (bottom row) are large, uniformly coloured objects where both superpixel and colour prototypes are reliable.}
-\label{fig:failure}
-\end{figure}
+The 20 worst Robust Superpixel predictions (IoU $<$ 0.13) share three traits: (i)~9 of 20 are bicycles, (ii)~median target area is 7,933~px vs.\ 27,023~px dataset-wide, and (iii)~three targets below 500~px produce near-zero IoU. On these difficult samples, Center Color (0.14~IoU) and GrabCut (0.30~IoU) both outperform Robust Superpixel (0.07), suggesting that the superpixel pipeline's additional structure can be counterproductive when the underlying SLIC segmentation is itself unreliable on thin or tiny objects. Conversely, the best 20 predictions are dominated by large, uniformly coloured objects (sofas, cats, monitors) with median area 35,687~px. Appendix Figure~\ref{fig:failure} visualizes representative extremes.
 
 \subsection{SAM modality}
 
@@ -177,7 +156,7 @@ Point+box & \textbf{0.8491} & \textbf{0.9087} \\
 
 Point+box is only 0.0012 IoU above box-only. The full-validation result refines the exploratory claim: SAM is box-dominated, but box-only is not stronger in aggregate.
 
-Figure~\ref{fig:samvscpu} compares SAM and CPU methods per class. A striking pattern emerges: SAM point-only underperforms the simple Center Color baseline on several rigid-object classes (tvmonitor: 0.518 vs.\ 0.668; sofa: 0.411 vs.\ 0.670; bus: 0.336 vs.\ 0.577). This counter-intuitive result---a foundation model losing to a colour threshold---occurs because SAM's point encoder is trained to expect a point anywhere on the object, while our centre-of-mass point provides no boundary context. Sam box-only, by contrast, dominates all CPU methods on almost every class (0.924 on tvmonitor, 0.947 on bus), confirming that the bounding box---not the model architecture---is the principal determinant of segmentation quality. On bicycle, even SAM box-only reaches only 0.356, indicating a dataset-annotation ceiling for wire-like structures.
+Figure~\ref{fig:samvscpu} compares SAM and CPU methods per class. A striking pattern emerges: SAM point-only underperforms the simple Center Color baseline on several rigid-object classes (tvmonitor: 0.518 vs.\ 0.668; sofa: 0.411 vs.\ 0.670; bus: 0.336 vs.\ 0.577). Under this protocol, the distance-transform point identifies a safe interior location but supplies no object extent. SAM box-only, by contrast, dominates all CPU methods on almost every class (0.924 on tvmonitor, 0.947 on bus), showing that the tight box is much more informative than a single interior point for SAM ViT-B in this benchmark. On bicycle, even SAM box-only reaches only 0.356, consistent with thin structures and substantial background inside the tight box; the experiment does not isolate a dataset or architecture ceiling.
 
 \begin{figure}[ht]
 \centering
@@ -188,7 +167,7 @@ Figure~\ref{fig:samvscpu} compares SAM and CPU methods per class. A striking pat
 
 \subsection{GrabCut failure investigation}
 
-The eight GrabCut failures (0.55\% of validation samples) are concentrated on \emph{large} targets: median area 144,517~px vs.\ 27,023~px dataset-wide. Sofa appears in 3 of 8 failures (37.5\% vs.\ 3.3\% class prevalence). This pattern refutes the intuition that GrabCut fails on small or ambiguous targets; instead, OpenCV's GMM initialization fails on large objects with complex, multi-textured surfaces where the initial colour model is poorly conditioned. The sofa class's combination of fabric textures, shadows, and occluding cushions creates a particularly challenging GMM fitting landscape. All eight failures are conservatively scored as zero IoU in aggregate metrics; for downstream use, a simple fallback to Center Color on GrabCut failure would recover these cases at minimal cost.
+The eight GrabCut failures (0.55\% of validation samples) share an exact geometric condition: every tight box spans the full image. Our mask initializer labels only pixels outside the box as definite background, so these cases supply no background samples and OpenCV raises the \texttt{initGMMs} assertion. Their large median target area (144,517~px vs.\ 27,023~px dataset-wide) and sofa frequency (3 of 8) are accompanying characteristics, not the established cause. All eight failures are conservatively scored as zero IoU in aggregate metrics. A deployable implementation should detect a full-image box and use a fallback such as Center Color or an inset/background-border initialization.
 
 \subsection{Primary hypotheses}
 
@@ -208,9 +187,106 @@ H3: point-noise IoU $-$ box-noise IoU & 0.1069 & [0.0997, 0.1138] & 0.000060 \\
 
 Moderate point noise yields 0.8194 IoU and matched-quality box noise 0.7125, supporting H3. Under joint noise, a single prompt reaches 0.6529, score selection 0.6723, consistency medoid 0.6758, vote consensus 0.6710, and Oracle 0.7822. H2 is statistically supported but modest. Consistency medoid was not a primary comparison and remains exploratory; Oracle is not deployable.
 
-\subsection{Cross-dataset validation on ADE20K}
+\paragraph{Multi-quality sensitivity.}
+In a separately frozen secondary analysis, tuning-only calibration targets observable qualities 0.9, 0.8, 0.7, 0.6, and 0.5; all 1,449 validation samples are then evaluated with 20 trials per target and channel (289,800 SAM inferences). Point-noise minus box-noise IoU is $-0.0016$ [${-0.0041}$, 0.0009] at 0.9, then 0.0238 [0.0201, 0.0275], 0.0756 [0.0703, 0.0809], 0.1497 [0.1430, 0.1563], and 0.2324 [0.2246, 0.2402]. Thus H3's direction is stable from 0.8 to 0.5 but not distinguishable at near-clean quality. Matching hit rate to box IoU remains an engineering calibration, not perceptual equivalence.
 
-To assess whether the method ranking generalizes beyond VOC, we run the same six CPU methods on a representative subset of the ADE20K validation set \cite{ade20k}. Samples are drawn from the \texttt{1aurent/ADE20K} Hugging Face mirror with a fixed random seed and a minimum instance area of 256~px. Targets are the largest object instance per image; clean prompts are constructed from ground-truth geometry identically to the VOC protocol.
+\subsection{Practical method selection}
+
+Table~\ref{tab:guidance} distills the experimental evidence into actionable recommendations. The choice of method should depend on the target-object profile and available resources, not on aggregate benchmark ranking alone.
+
+\begin{table}[ht]
+\centering
+\caption{Method selection guide based on target characteristics and constraints.}
+\label{tab:guidance}
+\begin{tabular}{p{0.28\linewidth}p{0.62\linewidth}}
+\toprule
+Scenario & Recommended method (and why) \\
+\midrule
+GPU available, box prompt feasible & SAM box-only (0.848 IoU; box dominates; point adds $<$0.002) \\
+GPU available, point-only only & SAM point-only is competitive for cats/cows/birds (0.72--0.81); Center Color is stronger on rigid objects (0.58--0.67 vs.\ SAM 0.34--0.52) \\
+CPU only, accuracy priority & GrabCut point+box (0.686 IoU); full-image boxes cause 8/1449 initialization failures---fall back to Center Color \\
+CPU only, speed priority & Center Color (13 ms, 0.540 IoU) or Adaptive Superpixel (199 ms, 0.612 IoU) \\
+Bicycles (thin/wire-like) & SAM box-only is the only method exceeding 0.30 IoU; all CPU methods remain below 0.21 \\
+Large rigid objects (tv, sofa, bus) & GrabCut or SAM box-only; even Center Color reaches 0.58--0.67 \\
+Small targets ($<12$K px) & Adaptive Superpixel (+0.0145 over fixed, secondary); avoid GrabCut colour-seed ablation (0.28 IoU) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent A preliminary 20-sample ADE20K convenience check has a ranking and ablation pattern consistent with VOC; Appendix~\ref{app:ade20k} reports the full table and scope limitations.
+
+\section{Discussion}
+
+Representative evaluation changes the original interpretation. The proposed CPU method is reliably better than its minimal baseline, but not GrabCut; its value lies in transparency and a speed--accuracy operating point. Box localization remains SAM's principal signal, consistent with prior prompting studies \cite{gaus} and BREPS \cite{breps}; our added evidence is that its greater sensitivity emerges progressively as matched observable quality degrades, while the channels are indistinguishable near 0.9. SAM score selection becomes statistically reliable at full scale, although the improvement is only 0.0193 IoU and requires extra decoder calls.
+
+Stratified analysis reveals systematic weaknesses: bicycles and other thin-structured objects consistently fail (IoU $<$ 0.21) because superpixel segmentation cannot capture wire-like geometry, and small targets (lowest area quartile) suffer across all CPU methods. The colour-seed component is the most area-sensitive ($+0.25$ IoU Q4$-$Q1), confirming that colour prototypes degrade on small regions. These per-class and per-size patterns---not just aggregate scores---should guide users in selecting the appropriate method for their target-object characteristics.
+
+Negative results are equally informative. Multi-box consensus adds complexity without aggregate benefit. The strongest CPU method is classical GrabCut. On the hardest 20 samples, all CPU methods fail, but Center Color (0.14) and GrabCut (0.30) are more robust than the superpixel-based method (0.07), suggesting that structural priors can become liabilities when the underlying image segmentation is unreliable. These findings prevent a polished engineering artifact from being presented as a stronger methodological contribution than the evidence supports.
+
+\section{Threats to Validity}
+
+Ground-truth-derived prompts are more controlled than real user input. Numeric matching of hit rate and box IoU does not make the metrics psychologically equivalent, and neither distribution is fitted to human errors. A privacy-minimizing human-prompt pilot protocol and collection tool are provided, but no participants were recruited and no human result is claimed. The benchmark selects one largest component per image rather than every instance. Only VOC 2012 and SAM ViT-B are tested at scale. ADE20K evidence is a first-20 convenience sample rather than representative confirmation; the full-stream runner is implemented, but the available environment could not reliably stream all validation data. Full cross-dataset confirmation, larger checkpoints, and learned interactive baselines would improve external validity. The earlier exploratory 30 images reappear inside the complete validation split (2.1\%), so H1--H3 are source-frozen and full-scale but not independently preregistered on a disjoint dataset. Adaptive Superpixel and the five-target curve are post-confirmatory secondary analyses; the image-size schedule cannot establish a causal target-size mechanism.
+
+\section{Conclusion}
+
+Under a frozen full-validation protocol with 1,449 VOC images, Robust Superpixel improves over Center Color but trails GrabCut; a secondary adaptive-resolution analysis yields a small paired gain; and SAM's box channel dominates, with point-only underperforming CPU baselines on several rigid classes. Matched-quality box noise causes substantially larger loss than point noise in H3; a secondary five-target curve localizes this asymmetry to quality 0.8 and below, with no distinguishable difference near 0.9. SAM score selection offers a modest but Holm-significant gain. Bicycles and small targets are systematic failure modes, while GrabCut's eight hard failures arise from full-image boxes. The contribution is a reproducible, stratified account of prompt-channel sensitivity and practical trade-offs rather than a state-of-the-art claim.
+
+\clearpage
+\fontsize{8}{9}\selectfont
+\begin{thebibliography}{99}
+\bibitem{voc} M. Everingham et al. The PASCAL Visual Object Classes Challenge. \emph{IJCV}, 2010. \url{https://www.robots.ox.ac.uk/~vgg/projects/pascal/VOC/}
+\bibitem{grabcut} C. Rother, V. Kolmogorov, and A. Blake. GrabCut: Interactive Foreground Extraction Using Iterated Graph Cuts. \emph{ACM TOG}, 2004.
+\bibitem{slic} R. Achanta et al. SLIC Superpixels Compared to State-of-the-Art Superpixel Methods. \emph{TPAMI}, 2012.
+\bibitem{dextr} K.-K. Maninis et al. Deep Extreme Cut: From Extreme Points to Object Segmentation. \emph{CVPR}, 2018.
+\bibitem{ritm} K. Sofiiuk, I. Petrov, and A. Konushin. Reviving Iterative Training with Mask Guidance for Interactive Segmentation. \emph{ICIP}, 2022.
+\bibitem{simpleclick} Q. Liu et al. SimpleClick: Interactive Image Segmentation with Simple Vision Transformers. \emph{ICCV}, 2023.
+\bibitem{sam} A. Kirillov et al. Segment Anything. \emph{ICCV}, 2023.
+\bibitem{gaus} Y. Gaus et al. Performance Evaluation of Segment Anything Model with Variational Prompting for Application to Non-Visible Spectrum Imagery. \emph{CVPRW}, 2024.
+\bibitem{ppsam} A. Rahman et al. PP-SAM: Perturbed Prompts for Robust Adaption of Segment Anything Model for Polyp Segmentation. \emph{CVPRW}, 2024.
+\bibitem{uncertainsam} T. Kaiser et al. UncertainSAM: Fast and Efficient Uncertainty Quantification of the Segment Anything Model. \emph{ICML}, 2025.
+\bibitem{benenson} R. Benenson, S. Popov, and V. Ferrari. Large-Scale Interactive Object Segmentation with Human Annotators. \emph{CVPR}, 2019.
+\bibitem{attackdefense} Liu et al. Attack for Defense: Adversarial Agents for Point Prompt Optimization Empowering Segment Anything Model. \emph{CVPR}, 2026.
+\bibitem{ade20k} B. Zhou et al. Scene Parsing through ADE20K Dataset. \emph{CVPR}, 2017. \url{https://groups.csail.mit.edu/vision/datasets/ADE20K/}
+\bibitem{sam2} N. Ravi et al. SAM 2: Segment Anything in Images and Videos. \emph{arXiv:2408.00714}, 2024.
+\bibitem{efficientsam} Y. Xiong et al. EfficientSAM: Leveraged Masked Image Pretraining for Efficient Segment Anything. \emph{CVPR}, 2024.
+\bibitem{hqsam} L. Ke et al. Segment Anything in High Quality. \emph{NeurIPS}, 2023.
+\bibitem{breps} A. Moskalenko et al. BREPS: Bounding-Box Robustness Evaluation of Promptable Segmentation. \emph{AAAI}, 2026.
+\end{thebibliography}
+
+\clearpage
+\normalsize
+\appendix
+
+\section{Extended stratified analysis}
+\label{app:extended}
+
+The main paper reports the numerical conclusions required for the hypothesis tests. This appendix provides the corresponding full-resolution diagnostic plots.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\linewidth]{per_class_iou.png}
+\caption{Per-class mean IoU for all CPU methods on VOC 2012 validation. Bicycle is systematically the most difficult class (all methods $<$ 0.21 IoU). GrabCut dominates except on \texttt{pottedplant}, where it underperforms due to GMM initialization sensitivity on multi-colour small-pot scenes.}
+\label{fig:perclass}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.85\linewidth]{per_area_iou.png}
+\caption{Mean IoU by target area quartile. All methods improve with area; the colour-seed ablation (Robust $-$color) shows the steepest climb, reflecting unreliable colour prototypes on small regions.}
+\label{fig:perarea}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\linewidth]{failure_report_grid.png}
+\caption{Error maps for three worst and three best Robust Superpixel predictions. Green = true positive, red = false positive, blue = false negative. Worst cases (top row) are dominated by thin structures and small targets; best cases (bottom row) are large, uniformly coloured objects.}
+\label{fig:failure}
+\end{figure}
+
+\section{Preliminary cross-dataset validation on ADE20K}
+\label{app:ade20k}
+
+We run the same six CPU methods on the first 20 stream-valid samples from the ADE20K validation mirror \cite{ade20k}. This is a convenience subset, not a representative sample. Samples come from the \texttt{1aurent/ADE20K} Hugging Face mirror with a minimum instance area of 256~px. The loader records a seed for reproducibility, but the current streaming path does not shuffle sample order. Targets and clean prompts follow the VOC protocol.
 
 \begin{table}[ht]
 \centering
@@ -229,64 +305,8 @@ Robust Superpixel & 0.6573 & 0.7824 & 200.4 ms \\
 \end{tabular}
 \end{table}
 
-The relative ranking on ADE20K is consistent with VOC: GrabCut $>$ Robust Superpixel $>$ Center Color, and the color seed remains the largest contributor. The absolute IoU values are moderately higher on ADE20K, likely because the Hugging Face mirror uses lower-resolution images (256--500~px) that reduce boundary-length-to-area ratios. The single-box ablation differs from the multi-box default by only 0.0005~IoU, replicating the VOC finding that box consensus provides essentially no average benefit. This preliminary cross-dataset evidence supports the transferability of the component analysis, though sample sizes and image resolutions differ materially. Full ADE20K validation (2,000 images) is deferred to future work.
+The ranking is GrabCut $>$ Robust Superpixel $>$ Center Color, and the color seed remains the largest contributor. The single-box ablation differs from the multi-box default by only 0.0005~IoU, consistent with the VOC finding that box consensus has essentially no average benefit. This evidence remains preliminary because the subset is small, order-dependent, and not representative, and image resolutions differ materially.
 
-\section{Discussion}
-
-Representative evaluation changes the original interpretation. The proposed CPU method is reliably better than its minimal baseline, but not GrabCut; its value lies in transparency and a speed--accuracy operating point. Box localization remains SAM's principal signal, consistent with prior prompting studies \cite{gaus} and with BREPS's systematic finding of high sensitivity to bounding-box perturbations \cite{breps}; our added evidence is that channel sensitivity persists after realized prompt quality is approximately matched. SAM score selection becomes statistically reliable at full scale, although the improvement is only 0.0193 IoU and requires extra decoder calls.
-
-Stratified analysis reveals systematic weaknesses: bicycles and other thin-structured objects consistently fail (IoU $<$ 0.21) because superpixel segmentation cannot capture wire-like geometry, and small targets (lowest area quartile) suffer across all CPU methods. The colour-seed component is the most area-sensitive ($+0.25$ IoU Q4$-$Q1), confirming that colour prototypes degrade on small regions. These per-class and per-size patterns---not just aggregate scores---should guide users in selecting the appropriate method for their target-object characteristics.
-
-Negative results are equally informative. Multi-box consensus adds complexity without aggregate benefit. The strongest CPU method is classical GrabCut. On the hardest 20 samples, all CPU methods fail, but Center Color (0.14) and GrabCut (0.30) are more robust than the superpixel-based method (0.07), suggesting that structural priors can become liabilities when the underlying image segmentation is unreliable. These findings prevent a polished engineering artifact from being presented as a stronger methodological contribution than the evidence supports.
-
-\paragraph{Practical guidance.}
-Table~\ref{tab:guidance} distills the experimental evidence into actionable recommendations. The choice of method should depend on the target-object profile and available resources, not on aggregate benchmark ranking alone.
-
-\begin{table}[ht]
-\centering
-\caption{Method selection guide based on target characteristics and constraints.}
-\label{tab:guidance}
-\begin{tabular}{p{0.28\linewidth}p{0.62\linewidth}}
-\toprule
-Scenario & Recommended method (and why) \\
-\midrule
-GPU available, box prompt feasible & SAM box-only (0.848 IoU; box dominates; point adds $<$0.002) \\
-GPU available, point-only only & SAM point-only for animals/birds (0.72); Center Color for rigid objects (0.67 vs.\ SAM's 0.52 on tvmonitor) \\
-CPU only, accuracy priority & GrabCut point+box (0.686 IoU); 8/1449 failures on large multi-textured objects---fall back to Center Color on error \\
-CPU only, speed priority & Center Color (13 ms, 0.540 IoU) or Adaptive Superpixel (199 ms, 0.612 IoU) \\
-Thin/wire-like targets (bicycles, chairs) & SAM box-only is the only method exceeding 0.30 IoU; all CPU methods fail ($<$0.21) \\
-Large rigid objects (tv, sofa, bus) & GrabCut or SAM box-only; even Center Color reaches 0.67--0.67 \\
-Small targets ($<12$K px) & Adaptive Superpixel (+0.014 over fixed); avoid GrabCut colour-seed ablation (0.28 IoU) \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\section{Threats to Validity}
-
-Ground-truth-derived prompts are more controlled than real user input. Numeric matching of hit rate and box IoU does not make the metrics psychologically equivalent, and neither distribution is fitted to human errors. The benchmark selects one largest component per image rather than every instance. Only VOC 2012 and SAM ViT-B are tested at scale; ADE20K trials are preliminary (20 samples) and image resolution is lower. Full cross-dataset confirmation, SAM 2, larger checkpoints, and learned interactive baselines such as RITM or SimpleClick would improve external validity. GrabCut has eight explicit failures on VOC. The tuning split is class-balanced while validation has the natural distribution. Although source hashes prevent silent post-confirmatory changes, the hypotheses were motivated by exploratory results; an independent second dataset at scale would offer stronger confirmation.
-
-\section{Conclusion}
-
-Under a frozen full-validation protocol with 1,449 VOC images, we find that (1)~Robust Superpixel improves over Center Color but trails GrabCut; (2)~an adaptive superpixel-resolution variant yields a small, costless gain concentrated on small targets ($+0.014$ IoU in the lowest area quartile); (3)~SAM's box channel dominates, with point-only underperforming CPU baselines on several rigid-object classes; (4)~matched-quality box noise causes substantially larger loss than point noise ($+0.107$ IoU delta); and (5)~SAM score selection offers a modest but Holm-significant improvement over a single noisy prompt. Per-class and per-area stratification reveals that bicycles ($<$0.21 IoU for all CPU methods) and small targets are systematic failure modes, while GrabCut's eight failures are counter-intuitively concentrated on large multi-textured objects. A practical method-selection guide is provided. The primary contribution is a reproducible, stratified account of prompt-channel sensitivity, component-level evidence strength, and practical method trade-offs rather than a state-of-the-art claim.
-
-\begin{thebibliography}{12}
-\bibitem{voc} M. Everingham et al. The PASCAL Visual Object Classes Challenge. \emph{IJCV}, 2010. \url{https://www.robots.ox.ac.uk/~vgg/projects/pascal/VOC/}
-\bibitem{grabcut} C. Rother, V. Kolmogorov, and A. Blake. GrabCut: Interactive Foreground Extraction Using Iterated Graph Cuts. \emph{ACM TOG}, 2004.
-\bibitem{slic} R. Achanta et al. SLIC Superpixels Compared to State-of-the-Art Superpixel Methods. \emph{TPAMI}, 2012.
-\bibitem{dextr} K.-K. Maninis et al. Deep Extreme Cut: From Extreme Points to Object Segmentation. \emph{CVPR}, 2018.
-\bibitem{ritm} K. Sofiiuk, I. Petrov, and A. Konushin. Reviving Iterative Training with Mask Guidance for Interactive Segmentation. \emph{ICIP}, 2022.
-\bibitem{simpleclick} Q. Liu et al. SimpleClick: Interactive Image Segmentation with Simple Vision Transformers. \emph{ICCV}, 2023.
-\bibitem{sam} A. Kirillov et al. Segment Anything. \emph{ICCV}, 2023.
-\bibitem{gaus} Y. Gaus et al. Performance Evaluation of Segment Anything Model with Variational Prompting. \emph{CVPRW}, 2024.
-\bibitem{ppsam} A. Rahman et al. PP-SAM: Perturbed Prompts for Robust Adaptation of Segment Anything Model. \emph{CVPRW}, 2024.
-\bibitem{uncertainsam} T. Kaiser et al. UncertainSAM: Segment Anything with Uncertainty Estimation. \emph{ICML}, 2025.
-\bibitem{benenson} R. Benenson, S. Popov, and V. Ferrari. Large-Scale Interactive Object Segmentation with Human Annotators. \emph{CVPR}, 2019.
-\bibitem{attackdefense} Liu et al. Attack for Defense: Adversarial Agents for Point Prompt Optimization. \emph{CVPR}, 2026.
-\bibitem{ade20k} B. Zhou et al. Scene Parsing through ADE20K Dataset. \emph{CVPR}, 2017. \url{https://groups.csail.mit.edu/vision/datasets/ADE20K/}
-\bibitem{sam2} N. Ravi et al. SAM 2: Segment Anything in Images and Videos. \emph{arXiv:2408.00714}, 2024.
-\bibitem{efficientsam} Y. Xiong et al. EfficientSAM: Leveraged Masked Image Pretraining for Efficient Segment Anything. \emph{CVPR}, 2024.
-\bibitem{hqsam} L. Ke et al. Segment Anything in High Quality. \emph{NeurIPS}, 2023.
-\bibitem{breps} A. Moskalenko et al. BREPS: Bounding-Box Robustness Evaluation of Promptable Segmentation. \emph{AAAI}, 2026.
-\end{thebibliography}
+\noindent\textbf{Scale-up status.} A runner that can scan the complete 2,000-row validation stream is implemented in \texttt{scripts/run\_ade20k\_cpu.py}; the 256-px target filter may yield fewer eligible samples. Only 20 are reported because the available environment could not reliably stream the full mirror.
 
 \end{document}
