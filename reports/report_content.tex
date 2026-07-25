@@ -156,12 +156,12 @@ Point+box & \textbf{0.8491} & \textbf{0.9087} \\
 
 Point+box is only 0.0012 IoU above box-only. The full-validation result refines the exploratory claim: SAM is box-dominated, but box-only is not stronger in aggregate.
 
-Figure~\ref{fig:samvscpu} compares SAM and CPU methods per class. A striking pattern emerges: SAM point-only underperforms the simple Center Color baseline on several rigid-object classes (tvmonitor: 0.518 vs.\ 0.668; sofa: 0.411 vs.\ 0.670; bus: 0.336 vs.\ 0.577). Under this protocol, the distance-transform point identifies a safe interior location but supplies no object extent. SAM box-only, by contrast, dominates all CPU methods on almost every class (0.924 on tvmonitor, 0.947 on bus), showing that the tight box is much more informative than a single interior point for SAM ViT-B in this benchmark. On bicycle, even SAM box-only reaches only 0.356, consistent with thin structures and substantial background inside the tight box; the experiment does not isolate a dataset or architecture ceiling.
+Figure~\ref{fig:samvscpu} compares SAM and CPU methods on six diagnostic classes chosen to expose thin-structure, rigid-object, and category-dependent behavior. SAM point-only underperforms the simple Center Color baseline on several rigid-object classes (tvmonitor: 0.518 vs.\ 0.668; sofa: 0.411 vs.\ 0.670; bus: 0.336 vs.\ 0.577). Under this protocol, the distance-transform point identifies a safe interior location but supplies no object extent. SAM box-only, by contrast, dominates all CPU methods on almost every selected class (0.924 on tvmonitor, 0.947 on bus), showing that the tight box is much more informative than a single interior point for SAM ViT-B in this benchmark. On bicycle, even SAM box-only reaches only 0.356, consistent with thin structures and substantial background inside the tight box; the experiment does not isolate a dataset or architecture ceiling.
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=\linewidth]{per_class_sam_vs_cpu.png}
-\caption{Per-class IoU: CPU methods vs.\ SAM ViT-B clean-prompt modalities. SAM point-only underperforms CPU methods on rigid, box-shaped classes (tvmonitor, sofa, bus); SAM box-only dominates almost everywhere except bicycle.}
+\includegraphics[width=\linewidth]{per_class_key_sam_vs_cpu.pdf}
+\caption{Mean IoU on six diagnostic classes. SAM point-only underperforms CPU methods on rigid, box-shaped classes; SAM box-only is strongest on all selected classes except bicycle.}
 \label{fig:samvscpu}
 \end{figure}
 
@@ -188,7 +188,7 @@ H3: point-noise IoU $-$ box-noise IoU & 0.1069 & [0.0997, 0.1138] & 0.000060 \\
 Moderate point noise yields 0.8194 IoU and matched-quality box noise 0.7125, supporting H3. Under joint noise, a single prompt reaches 0.6529, score selection 0.6723, consistency medoid 0.6758, vote consensus 0.6710, and Oracle 0.7822. H2 is statistically supported but modest. Consistency medoid was not a primary comparison and remains exploratory; Oracle is not deployable.
 
 \paragraph{Multi-quality sensitivity.}
-In a pre-specified secondary analysis, tuning-only calibration targets observable qualities 0.9, 0.8, 0.7, 0.6, and 0.5; all 1,449 validation samples are then evaluated with 20 trials per target and channel (289,800 SAM inferences). Point-noise minus box-noise IoU is $-0.0016$ [${-0.0041}$, 0.0009] at 0.9, then 0.0238 [0.0201, 0.0275], 0.0756 [0.0703, 0.0809], 0.1497 [0.1430, 0.1563], and 0.2324 [0.2246, 0.2402]. Thus H3's direction is stable from 0.8 to 0.5 but not distinguishable at near-clean quality. Matching hit rate to box IoU remains an engineering calibration, not perceptual equivalence.
+In a secondary analysis, tuning-only calibration targets observable qualities 0.9, 0.8, 0.7, 0.6, and 0.5; all 1,449 validation samples are then evaluated with 20 trials per target and channel (289,800 SAM inferences). Point-noise minus box-noise IoU is $-0.0016$ [${-0.0041}$, 0.0009] at 0.9, then 0.0238 [0.0201, 0.0275], 0.0756 [0.0703, 0.0809], 0.1497 [0.1430, 0.1563], and 0.2324 [0.2246, 0.2402]. Thus H3's direction is stable from 0.8 to 0.5 but not distinguishable at near-clean quality. Matching hit rate to box IoU remains an engineering calibration, not perceptual equivalence.
 
 \subsection{Practical method selection}
 
@@ -213,7 +213,7 @@ Small targets ($<12$K px) & Adaptive Superpixel (+0.0145 over fixed, secondary);
 \end{tabular}
 \end{table}
 
-\noindent A deterministic 200-sample ADE20K evaluation, selected after scanning all 2,000 validation rows, provides a bounded transfer observation; Appendix~\ref{app:ade20k} reports its scope and results.
+\noindent A secondary ADE20K evaluation uses a deterministic 200-sample subset selected after scanning all 2,000 validation rows; Appendix~\ref{app:ade20k} reports its scope and results.
 
 \section{Discussion}
 
@@ -264,8 +264,8 @@ The main paper reports the numerical conclusions required for the hypothesis tes
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=\linewidth]{per_class_iou.png}
-\caption{Per-class mean IoU for all CPU methods on VOC 2012 validation. Bicycle is systematically the most difficult class (all methods $<$ 0.21 IoU). GrabCut dominates except on \texttt{pottedplant}, where it underperforms due to GMM initialization sensitivity on multi-colour small-pot scenes.}
+\includegraphics[width=\linewidth]{per_class_cpu_split.pdf}
+\caption{Per-class mean IoU for all CPU methods on VOC 2012 validation, split into two 10-class panels for readability. Bicycle is systematically the most difficult class (all methods $<$ 0.21 IoU).}
 \label{fig:perclass}
 \end{figure}
 
@@ -283,7 +283,7 @@ The main paper reports the numerical conclusions required for the hypothesis tes
 \label{fig:failure}
 \end{figure}
 
-\section{Bounded ADE20K transfer observation}
+\section{Secondary Evaluation on ADE20K}
 \label{app:ade20k}
 
 We scan all 2,000 rows of an ADE20K validation mirror \cite{ade20k}, then use seed 20260720 to select 200 rows without replacement for CPU evaluation. All rows pass the 256-px minimum-area filter. Samples come from the \texttt{1aurent/ADE20K} Hugging Face mirror; targets and clean prompts follow the VOC protocol. The manifest, selected identifiers, per-sample metrics, and hashes are released without images or masks.
@@ -306,7 +306,7 @@ Adaptive Superpixel & 0.7288 & \textbf{0.8278} & 361.7 ms \\
 \end{tabular}
 \end{table}
 
-The IoU ranking is GrabCut $>$ Adaptive Superpixel $>$ Robust Superpixel $>$ Center Color. Removing the color seed costs 0.1989 IoU and removing the spatial prior costs 0.0332, while the single-box variant differs from the multi-box default by only $+0.0008$. Adaptive resolution improves descriptively by 0.0138 IoU over the fixed schedule. These patterns agree with the VOC component analysis, but this bounded secondary sample does not replace a complete cross-dataset evaluation.
+The IoU ranking is GrabCut $>$ Adaptive Superpixel $>$ Robust Superpixel $>$ Center Color. Removing the color seed costs 0.1989 IoU and removing the spatial prior costs 0.0332, while the single-box variant differs from the multi-box default by only $+0.0008$. Adaptive resolution improves descriptively by 0.0138 IoU over the fixed schedule. These patterns agree with the VOC component analysis, but this 200-sample evaluation does not replace a complete cross-dataset evaluation.
 
 \noindent\textbf{Coverage.} The complete 2,000-row stream was scanned and all rows were eligible; 200 seeded rows (10\%) were evaluated with seven CPU methods, producing 1,400 metric rows with no method failures. The same resume-safe runner supports full evaluation, but the remaining 1,800 rows were not run.
 

@@ -1,7 +1,7 @@
 # Anonymous Prompted-Segmentation Artifact
 
-This supplementary artifact accompanies the anonymous manuscript **Calibrated
-Prompt Uncertainty in Zero-Shot Segmentation**.
+This supplementary artifact accompanies the anonymous manuscript **Evaluating
+Prompt Robustness in Zero-Shot Segmentation with SAM and Lightweight Baselines**.
 
 It contains source code, frozen data-free manifests, per-sample metrics,
 confirmatory statistics, tests, and the anonymous PDF. It contains no dataset
