@@ -161,7 +161,7 @@ Figure~\ref{fig:samvscpu} compares SAM and CPU methods on six diagnostic classes
 \begin{figure}[ht]
 \centering
 \includegraphics[width=\linewidth]{per_class_key_sam_vs_cpu.pdf}
-\caption{Mean IoU on six diagnostic classes. SAM point-only underperforms CPU methods on rigid, box-shaped classes; SAM box-only is strongest on all selected classes except bicycle.}
+\caption{Mean IoU on six diagnostic classes. SAM point-only underperforms CPU methods on rigid, box-shaped classes; SAM's box-based settings are strongest on all six selected classes. Box-only is best on bicycle, although its IoU remains low (0.356).}
 \label{fig:samvscpu}
 \end{figure}
 
@@ -208,7 +208,7 @@ CPU only, accuracy priority & GrabCut point+box (0.686 IoU); full-image boxes ca
 CPU only, speed priority & Center Color (13 ms, 0.540 IoU) or Adaptive Superpixel (199 ms, 0.612 IoU) \\
 Bicycles (thin/wire-like) & SAM box-only is the only method exceeding 0.30 IoU; all CPU methods remain below 0.21 \\
 Large rigid objects (tv, sofa, bus) & GrabCut or SAM box-only; even Center Color reaches 0.58--0.67 \\
-Small targets ($<12$K px) & Adaptive Superpixel (+0.0145 over fixed, secondary); avoid GrabCut colour-seed ablation (0.28 IoU) \\
+Small targets ($<12$K px) & Adaptive Superpixel (+0.0145 over fixed, secondary); avoid the no-color-seed variant (0.28 IoU) \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -278,7 +278,7 @@ The main paper reports the numerical conclusions required for the hypothesis tes
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=\linewidth]{failure_report_grid.png}
+\makebox[\linewidth][c]{\includegraphics[width=1.20\linewidth]{failure_report_grid.png}}
 \caption{Error maps for three worst and three best Robust Superpixel predictions. Green = true positive, red = false positive, blue = false negative. Worst cases (top row) are dominated by thin structures and small targets; best cases (bottom row) are large, uniformly coloured objects.}
 \label{fig:failure}
 \end{figure}
