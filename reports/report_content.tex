@@ -2,7 +2,7 @@
 \maketitle
 
 \begin{abstract}
-Evaluating zero-shot prompted segmentation under uncertain input is difficult because point and box perturbations have no directly comparable scale. We study prompt robustness on all 1,449 PASCAL VOC 2012 validation images, using a disjoint 100-image training subset to calibrate both channels to matched observable quality. Center Color, GrabCut, and superpixel pipelines serve as interpretable CPU baselines alongside SAM ViT-B. Three findings emerge. First, Robust Superpixel improves over Center Color by 0.0640 IoU but remains below GrabCut, locating its value in transparent component analysis rather than state-of-the-art accuracy. Second, SAM's score-based candidate selection provides a modest 0.0193 IoU gain over a single noisy prompt. Third, matched-quality box perturbations become increasingly more damaging than point perturbations as prompt quality decreases, while the channels are indistinguishable near quality 0.9. Stratified results further expose systematic failures on thin structures, small targets, and full-image boxes. The study provides a reproducible robustness benchmark, component ablations, and practical guidance for choosing prompt channels and segmentation methods.
+Evaluating zero-shot prompted segmentation under uncertain input is difficult because point and box perturbations have no directly comparable scale. We study prompt robustness on all 1,449 PASCAL VOC 2012 validation images, using a disjoint 100-image training subset to calibrate both channels to matched observable quality. Center Color, GrabCut, and superpixel pipelines serve as interpretable CPU baselines alongside SAM ViT-B. Three findings emerge. First, Robust Superpixel improves over Center Color by 0.0640 IoU but remains below GrabCut, showing that its value lies in transparent component analysis rather than state-of-the-art accuracy. Second, SAM's score-based candidate selection provides a modest 0.0193 IoU gain over a single noisy prompt. Third, matched-quality box perturbations become progressively more damaging than point perturbations as prompt quality decreases, while the channels are indistinguishable near quality 0.9. Stratified results further expose systematic failures on thin structures, small targets, and full-image boxes. The study provides a reproducible robustness benchmark, component ablations, and practical guidance for choosing prompt channels and segmentation methods.
 \end{abstract}
 
 \section{Introduction}
@@ -202,8 +202,8 @@ Table~\ref{tab:guidance} distills the experimental evidence into actionable reco
 \toprule
 Scenario & Recommended method (and why) \\
 \midrule
-GPU available, box prompt feasible & SAM box-only (0.848 IoU; box dominates; point adds $<$0.002) \\
-GPU available, point-only only & SAM point-only is competitive for cats/cows/birds (0.72--0.81); Center Color is stronger on rigid objects (0.58--0.67 vs.\ SAM 0.34--0.52) \\
+GPU available, box prompt provided & SAM box-only (0.848 IoU; box dominates; point adds $<$0.002) \\
+GPU available, point prompt only & SAM point-only is competitive for cats/cows/birds (0.72--0.81); Center Color is stronger on rigid objects (0.58--0.67 vs.\ SAM 0.34--0.52) \\
 CPU only, accuracy priority & GrabCut point+box (0.686 IoU); full-image boxes cause 8/1449 initialization failures---fall back to Center Color \\
 CPU only, speed priority & Center Color (13 ms, 0.540 IoU) or Adaptive Superpixel (199 ms, 0.612 IoU) \\
 Bicycles (thin/wire-like) & SAM box-only is the only method exceeding 0.30 IoU; all CPU methods remain below 0.21 \\
@@ -217,7 +217,7 @@ Small targets ($<12$K px) & Adaptive Superpixel (+0.0145 over fixed, secondary);
 
 \section{Discussion}
 
-Representative evaluation changes the original interpretation. The proposed CPU method is reliably better than its minimal baseline, but not GrabCut; its value lies in transparency and a speed--accuracy operating point. Box localization remains SAM's principal signal, consistent with prior prompting studies \cite{gaus} and BREPS \cite{breps}; our added evidence is that its greater sensitivity emerges progressively as matched observable quality degrades, while the channels are indistinguishable near 0.9. SAM score selection becomes statistically reliable at full scale, although the improvement is only 0.0193 IoU and requires extra decoder calls.
+Evaluation on the complete validation set changes the original interpretation. The proposed CPU method is reliably better than its minimal baseline, but not GrabCut; its value lies in transparency and a speed--accuracy operating point. Box localization remains SAM's principal signal, consistent with prior prompting studies \cite{gaus} and BREPS \cite{breps}; our added evidence is that its greater sensitivity emerges progressively as matched observable quality degrades, while the channels are indistinguishable near 0.9. SAM score selection becomes statistically reliable at full scale, although the improvement is only 0.0193 IoU and requires extra decoder calls.
 
 Stratified analysis reveals systematic weaknesses: bicycles and other thin-structured objects consistently fail (IoU $<$ 0.21) because superpixel segmentation cannot capture wire-like geometry, and small targets (lowest area quartile) suffer across all CPU methods. The colour-seed component is the most area-sensitive ($+0.25$ IoU Q4$-$Q1), confirming that colour prototypes degrade on small regions. These per-class and per-size patterns---not just aggregate scores---should guide users in selecting the appropriate method for their target-object characteristics.
 
