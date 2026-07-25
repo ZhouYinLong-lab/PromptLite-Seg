@@ -5,25 +5,31 @@ import csv, json, sys
 from collections import defaultdict
 from pathlib import Path
 
+import matplotlib
+matplotlib.use("Agg")
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from _figure_style import apply_style, save_figure, METHOD_COLORS
 import matplotlib.pyplot as plt
+from _figure_style import apply_style, save_figure, METHOD_COLORS
 
 METHODS = ["center_color", "robust_no_color_seed", "robust_no_spatial_prior",
            "robust_single_box", "robust_superpixel", "grabcut_point_box"]
-LABELS = ["Center Color", "Robust −color", "Robust −spatial",
-          "Robust −consensus", "Robust Superpixel", "GrabCut"]
+LABELS = ["Center Color", "Robust w/o color", "Robust w/o spatial",
+          "Robust single box", "Robust Superpixel", "GrabCut"]
 N = len(METHODS)
+SERIES_COLORS = ["#D55E00", "#E69F00", "#0072B2", "#56B4E9", "#009E73", "#CC79A7"]
+SERIES_MARKERS = ["o", "s", "D", "^", "v", "P"]
 
 
 def main() -> None:
     apply_style()
     out = ROOT / "outputs_analysis"; out.mkdir(parents=True, exist_ok=True)
+    report_figures = ROOT / "reports" / "figures"
+    report_figures.mkdir(parents=True, exist_ok=True)
 
     # ── Load data ──
     with open(ROOT / "protocol/manifests/confirmatory_validation.jsonl", encoding="utf-8") as f:
@@ -42,29 +48,59 @@ def main() -> None:
     classes = sorted(set(class_map.values()))
     class_means = {m: {c: float(np.mean(data[m].get(c, [0]) or [0])) for c in classes} for m in METHODS}
 
-    # ── Fig 1: Per-class grouped bar ──
-    x = np.arange(len(classes)); w = 0.8 / N
-    fig, ax = plt.subplots(figsize=(19, 6.5))
+    # ── Fig 1: Full 20-class comparison, split into two readable panels ──
+    class_groups = [classes[:10], classes[10:]]
+    offsets = np.linspace(-0.30, 0.30, N)
+    fig, axes = plt.subplots(2, 1, figsize=(10.5, 11.5), sharex=True)
 
-    for i, (m, lbl) in enumerate(zip(METHODS, LABELS)):
-        means = [class_means[m][c] for c in classes]
-        bars = ax.bar(x + i * w, means, w, label=lbl, color=METHOD_COLORS[i], zorder=2)
-        for bar, val in zip(bars, means):
-            if val > 0.68:
-                ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.012,
-                        f"{val:.2f}", ha="center", va="bottom", fontsize=5.5, rotation=90, color="#444444")
+    for panel_index, (ax, panel_classes) in enumerate(zip(axes, class_groups)):
+        y = np.arange(len(panel_classes))
+        for i, (m, lbl, color, marker) in enumerate(
+            zip(METHODS, LABELS, SERIES_COLORS, SERIES_MARKERS)
+        ):
+            vals = [class_means[m][c] for c in panel_classes]
+            ax.scatter(
+                vals,
+                y + offsets[i],
+                s=68,
+                marker=marker,
+                label=lbl,
+                color=color,
+                edgecolor="white",
+                linewidth=0.5,
+                zorder=3,
+            )
+        ax.set_yticks(y)
+        ax.set_yticklabels(panel_classes, fontsize=13)
+        ax.tick_params(axis="x", labelsize=12)
+        ax.invert_yaxis()
+        ax.set_xlim(0, 0.9)
+        ax.grid(axis="x", alpha=0.3)
+        ax.grid(axis="y", visible=False)
+        ax.set_title(
+            f"Classes {panel_index * 10 + 1}–{panel_index * 10 + len(panel_classes)}",
+            fontsize=14,
+            loc="left",
+        )
 
-    ax.set_ylabel("Mean IoU")
-    ax.set_title("Per-Class IoU — CPU Methods on PASCAL VOC 2012 Validation")
-    ax.set_xticks(x + w * (N - 1) / 2)
-    ax.set_xticklabels(classes, rotation=45, ha="right", fontsize=8.5)
-    ax.legend(loc="upper right", ncol=2, fontsize=8)
-    ax.set_ylim(0, 0.98)
-    ax.axhline(y=0.6044, color="#999999", linestyle="--", linewidth=0.7, zorder=1)
-    ax.text(len(classes)-0.5, 0.608, "macro mean (0.604)", fontsize=7, color="#999999", va="bottom")
+    axes[-1].set_xlabel("Mean IoU", fontsize=14)
+    fig.suptitle("CPU Methods by VOC Class", fontsize=16, y=0.995)
+    handles, legend_labels = axes[0].get_legend_handles_labels()
+    fig.legend(
+        handles,
+        legend_labels,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.965),
+        ncol=3,
+        fontsize=11,
+        columnspacing=1.2,
+        handletextpad=0.5,
+    )
+    fig.subplots_adjust(top=0.90, hspace=0.24)
 
-    save_figure(fig, str(out / "per_class_iou.png"))
-    print(f"Saved → {out / 'per_class_iou.png'}")
+    class_path = report_figures / "per_class_cpu_split.pdf"
+    save_figure(fig, str(class_path))
+    print(f"Saved → {class_path}")
 
     # ── Fig 2: Per-area line chart ──
     area_map = {}
